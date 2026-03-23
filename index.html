@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F1 Fantasy 2026</title>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 1 OF 3 — PASTE YOUR FIREBASE CONFIG HERE
+       Get this from: Firebase Console → Your Project →
+       Project Settings → Your Apps → SDK setup and configuration
+  ════════════════════════════════════════════════════════════════ -->
+  <script>
+    const FIREBASE_CONFIG = {
+      apiKey:            "PASTE_YOUR_API_KEY_HERE",
+      authDomain:        "PASTE_YOUR_AUTH_DOMAIN_HERE",
+      projectId:         "PASTE_YOUR_PROJECT_ID_HERE",
+      storageBucket:     "PASTE_YOUR_STORAGE_BUCKET_HERE",
+      messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID_HERE",
+      appId:             "PASTE_YOUR_APP_ID_HERE",
+    };
+  </script>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 2 OF 3 — PASTE YOUR EMAILJS PUBLIC KEY HERE
+       Get this from: emailjs.com → Account → API Keys
+  ════════════════════════════════════════════════════════════════ -->
+  <script>
+    const EMAILJS_PUBLIC_KEY = "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE";
+  </script>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 3 OF 3 — PASTE YOUR EMAILJS SERVICE + TEMPLATE IDs
+       Get from: emailjs.com → Email Services and Email Templates
+  ════════════════════════════════════════════════════════════════ -->
+  <script>
+    const EMAILJS_SERVICE_ID  = "PASTE_YOUR_SERVICE_ID_HERE";
+    const EMAILJS_TEMPLATE_ID = "PASTE_YOUR_TEMPLATE_ID_HERE";
+  </script>
+
+  <!-- Dependencies -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #080A0C; color: #fff; font-family: 'DM Sans', sans-serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #E10600; border-radius: 2px; }
+    select option { background: #111; color: #fff; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+    .anim { animation: fadeUp .25s ease forwards; }
+    .rg { color: #FFD700; text-shadow: 0 0 14px #FFD70055; }
+    .rs { color: #C0C0C0; }
+    .rb { color: #CD7F32; }
+    .bp { transition: opacity .15s, transform .1s; cursor: pointer; }
+    .bp:hover { opacity: .85; transform: translateY(-1px); }
+    .bp:active { transform: translateY(0); }
+    .th { transition: color .2s; }
+    .th:hover { color: #fff !important; }
+    input[type=date]::-webkit-calendar-picker-indicator { filter: invert(.5); }
+    input, select { outline: none; }
+    button { outline: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ── Constants ───────────────────────────────────────────────────────────────
+
+    const GP_PTS  = [25,18,15,12,10,8,6,4,2,1];
+    const SPR_PTS = [8,7,6,5,4,3,2,1];
+    const C = { red:"#E10600", gold:"#FFD700", green:"#00C853", orange:"#FF8000", teal:"#00D2BE", bg:"#080A0C", card:"#0F1115", border:"#1C1E24", muted:"#3A3D46", dim:"#6B7280" };
+
+    const DRIVERS = [
+      "Max Verstappen","Lando Norris","Charles Leclerc","Oscar Piastri",
+      "George Russell","Kimi Antonelli","Fernando Alonso","Carlos Sainz",
+      "Lance Stroll","Pierre Gasly","Jack Doohan","Yuki Tsunoda",
+      "Liam Lawson","Alexander Albon","Franco Colapinto","Nico Hulkenberg",
+      "Gabriel Bortoleto","Oliver Bearman","Esteban Ocon","Isack Hadjar",
+      "Arvid Lindblad","Valtteri Bottas",
+    ];
+
+    const ALL_RACES = [
+      { id:"aus-2026", name:"Australian Grand Prix",          location:"Melbourne",   flag:"🇦🇺", date:"2026-03-08", hasSprint:false, status:"completed", picks:{}, points:{lewis:{s:0,r:0},zayd:{s:0,r:0},toth:{s:0,r:0},mcmichael:{s:0,r:0}}, noLeague:true },
+      { id:"chn-2026", name:"Chinese Grand Prix",             location:"Shanghai",    flag:"🇨🇳", date:"2026-03-15", hasSprint:true,  status:"completed", picks:{lewis:"Charles Leclerc",zayd:"Lando Norris",toth:"Max Verstappen",mcmichael:"Kimi Antonelli"}, points:{lewis:{s:7,r:15},zayd:{s:5,r:0},toth:{s:0,r:0},mcmichael:{s:4,r:25}} },
+      { id:"jpn-2026", name:"Japanese Grand Prix",            location:"Suzuka",      flag:"🇯🇵", date:"2026-03-29", hasSprint:false, status:"picks_open", picks:{}, points:{} },
+      { id:"mia-2026", name:"Miami Grand Prix",               location:"Miami",       flag:"🇺🇸", date:"2026-05-03", hasSprint:true,  status:"upcoming",  picks:{}, points:{} },
+      { id:"can-2026", name:"Canadian Grand Prix",            location:"Montréal",    flag:"🇨🇦", date:"2026-05-24", hasSprint:true,  status:"upcoming",  picks:{}, points:{} },
+      { id:"mon-2026", name:"Monaco Grand Prix",              location:"Monaco",      flag:"🇲🇨", date:"2026-06-07", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"bar-2026", name:"Barcelona-Catalunya Grand Prix", location:"Barcelona",   flag:"🇪🇸", date:"2026-06-14", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"aut-2026", name:"Austrian Grand Prix",            location:"Spielberg",   flag:"🇦🇹", date:"2026-06-28", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"gbr-2026", name:"British Grand Prix",             location:"Silverstone", flag:"🇬🇧", date:"2026-07-05", hasSprint:true,  status:"upcoming",  picks:{}, points:{} },
+      { id:"bel-2026", name:"Belgian Grand Prix",             location:"Spa",         flag:"🇧🇪", date:"2026-07-19", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"hun-2026", name:"Hungarian Grand Prix",           location:"Budapest",    flag:"🇭🇺", date:"2026-07-26", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"ndl-2026", name:"Dutch Grand Prix",               location:"Zandvoort",   flag:"🇳🇱", date:"2026-08-23", hasSprint:true,  status:"upcoming",  picks:{}, points:{} },
+      { id:"ita-2026", name:"Italian Grand Prix",             location:"Monza",       flag:"🇮🇹", date:"2026-09-06", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"mad-2026", name:"Madrid Grand Prix",              location:"Madrid",      flag:"🇪🇸", date:"2026-09-13", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"aze-2026", name:"Azerbaijan Grand Prix",          location:"Baku",        flag:"🇦🇿", date:"2026-09-26", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"sin-2026", name:"Singapore Grand Prix",           location:"Singapore",   flag:"🇸🇬", date:"2026-10-11", hasSprint:true,  status:"upcoming",  picks:{}, points:{} },
+      { id:"usa-2026", name:"United States Grand Prix",       location:"Austin",      flag:"🇺🇸", date:"2026-10-25", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"mex-2026", name:"Mexico City Grand Prix",         location:"Mexico City", flag:"🇲🇽", date:"2026-11-01", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"bra-2026", name:"São Paulo Grand Prix",           location:"São Paulo",   flag:"🇧🇷", date:"2026-11-08", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"lv-2026",  name:"Las Vegas Grand Prix",           location:"Las Vegas",   flag:"🇺🇸", date:"2026-11-21", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"qat-2026", name:"Qatar Grand Prix",               location:"Lusail",      flag:"🇶🇦", date:"2026-11-29", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"abu-2026", name:"Abu Dhabi Grand Prix",           location:"Yas Marina",  flag:"🇦🇪", date:"2026-12-06", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+    ];
+
+    const DEFAULT_DATA = {
+      adminPin: "f1",
+      players: [
+        { id:"lewis",     name:"Lewis",         email:"" },
+        { id:"zayd",      name:"Zayd",          email:"" },
+        { id:"toth",      name:"Mr. Toth",      email:"" },
+        { id:"mcmichael", name:"Mr. McMichael", email:"" },
+      ],
+      races: ALL_RACES,
+    };
+
+    // ── Firebase ────────────────────────────────────────────────────────────────
+
+    let db = null;
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+    } catch(e) {
+      console.error("Firebase init failed — check your config values.", e);
+    }
+
+    async function loadData() {
+      if (!db) return DEFAULT_DATA;
+      try {
+        const doc = await db.collection("f1fantasy").doc("data").get();
+        if (doc.exists) return doc.data();
+        await db.collection("f1fantasy").doc("data").set(DEFAULT_DATA);
+        return DEFAULT_DATA;
+      } catch(e) {
+        console.error("Firestore load error:", e);
+        return DEFAULT_DATA;
+      }
+    }
+
+    async function saveData(data) {
+      if (!db) return;
+      try {
+        await db.collection("f1fantasy").doc("data").set(data);
+      } catch(e) {
+        console.error("Firestore save error:", e);
+      }
+    }
+
+    function subscribeData(callback) {
+      if (!db) return () => {};
+      return db.collection("f1fantasy").doc("data").onSnapshot(doc => {
+        if (doc.exists) callback(doc.data());
+      });
+    }
+
+    // ── EmailJS ─────────────────────────────────────────────────────────────────
+
+    async function sendPickEmail({ toPlayer, nextRace, takenDrivers, allPlayers, allRaces }) {
+      if (!toPlayer.email) return false;
+      if (EMAILJS_PUBLIC_KEY === "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE") return false;
+      const order = pickOrder(allPlayers, allRaces);
+      const pos   = order.findIndex(p => p.id === toPlayer.id) + 1;
+      const taken = takenDrivers.length ? takenDrivers.join(", ") : "None — you're first!";
+      try {
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+          to_email:  toPlayer.email,
+          to_name:   toPlayer.name,
+          race_name: nextRace.name,
+          race_date: fmtShort(nextRace.date),
+          pick_pos:  pos,
+          taken,
+          app_url:   window.location.href,
+        }, EMAILJS_PUBLIC_KEY);
+        return true;
+      } catch(e) {
+        console.error("EmailJS error:", e);
+        return false;
+      }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────────
+
+    function total(player, races) {
+      return races.reduce((sum, r) => {
+        if (r.status !== "completed" || r.noLeague) return sum;
+        const p = r.points?.[player.id];
+        return sum + (p ? (p.s||0)+(p.r||0) : 0);
+      }, 0);
+    }
+    function standings(players, races) {
+      return [...players].map(p => ({...p, pts: total(p, races)})).sort((a,b) => b.pts - a.pts);
+    }
+    function pickOrder(players, races) {
+      return [...standings(players, races)].reverse();
+    }
+    function daysUntil(d) {
+      return Math.ceil((new Date(d) - new Date()) / 86400000);
+    }
+    function fmtDate(d) {
+      return new Date(d).toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" });
+    }
+    function fmtShort(d) {
+      return new Date(d).toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" });
+    }
+
+    // ── UI Primitives ────────────────────────────────────────────────────────────
+
+    const Card = ({ children, style={}, className="" }) => (
+      <div className={className} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:14, ...style }}>
+        {children}
+      </div>
+    );
+    const ST = ({ children, color=C.red }) => (
+      <div style={{ fontSize:10, fontWeight:600, letterSpacing:".2em", textTransform:"uppercase", color, marginBottom:14, fontFamily:"DM Sans,sans-serif", display:"flex", alignItems:"center", gap:7 }}>
+        <div style={{ width:3, height:11, background:color, borderRadius:2, flexShrink:0 }} />
+        {children}
+      </div>
+    );
+    const Lbl = ({ children }) => (
+      <div style={{ fontSize:10, fontWeight:600, letterSpacing:".18em", textTransform:"uppercase", color:C.dim, marginBottom:6, fontFamily:"DM Sans,sans-serif" }}>{children}</div>
+    );
+    const Badge = ({ children, color }) => (
+      <span style={{ background:`${color}18`, color, border:`1px solid ${color}35`, borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", fontFamily:"DM Sans,sans-serif", whiteSpace:"nowrap" }}>{children}</span>
+    );
+    function Btn({ children, onClick, variant="primary", style={}, disabled=false }) {
+      const b = { fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase", padding:"9px 15px", borderRadius:9, cursor:disabled?"not-allowed":"pointer", border:"none", opacity:disabled?.5:1, ...style };
+      if (variant==="primary") return <button className="bp" style={{...b, background:C.red, color:"#fff"}} onClick={onClick} disabled={disabled}>{children}</button>;
+      if (variant==="ghost")   return <button className="bp" style={{...b, background:"transparent", color:C.dim, border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
+      return <button className="bp" style={{...b, background:"#1a1d22", color:"#fff", border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
+    }
+    const Sel = ({ value, onChange, children, style={} }) => (
+      <select value={value} onChange={onChange} style={{ background:"#0A0C10", border:`1px solid ${C.border}`, borderRadius:9, color:"#fff", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 12px) center", ...style }}>
+        {children}
+      </select>
+    );
+    const Inp = ({ value, onChange, placeholder, type="text", style={}, onKeyDown }) => (
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder} onKeyDown={onKeyDown}
+        style={{ background:"#0A0C10", border:`1px solid ${C.border}`, borderRadius:9, color:"#fff", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", colorScheme:"dark", ...style }} />
+    );
+
+    // ── Standings ────────────────────────────────────────────────────────────────
+
+    function StandingsTab({ data }) {
+      const ranked = standings(data.players, data.races);
+      const order  = pickOrder(data.players, data.races);
+      const next   = data.races.find(r => r.status !== "completed");
+      const last   = [...data.races].reverse().find(r => r.status === "completed" && !r.noLeague);
+      const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
+      const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
+
+      return (
+        <div className="anim">
+          <div style={{ display:"flex", gap:9, marginBottom:14 }}>
+            {ranked.slice(0,3).map((p,i) => (
+              <div key={p.id} style={{ flex:1, background:C.card, border:`1px solid ${i===0?"#FFD70030":C.border}`, borderTop:i===0?"2px solid #FFD700":"1px solid transparent", borderRadius:13, padding:"15px 10px", textAlign:"center" }}>
+                <div style={{ fontSize:20, marginBottom:3 }}>{ri(i)}</div>
+                <div className={rc(i)} style={{ fontFamily:"Russo One,sans-serif", fontSize:13, marginBottom:2 }}>{p.name}</div>
+                <div style={{ fontFamily:"Russo One,sans-serif", fontSize:23 }}>{p.pts}</div>
+                <div style={{ fontSize:9, color:C.dim, letterSpacing:".1em", textTransform:"uppercase" }}>pts</div>
+              </div>
+            ))}
+          </div>
+
+          <Card>
+            <ST>Championship Standings</ST>
+            {ranked.map((p,i) => {
+              const lp = last?.points?.[p.id];
+              const lpts = lp ? (lp.s||0)+(lp.r||0) : null;
+              return (
+                <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:i<ranked.length-1?`1px solid ${C.border}`:"none" }}>
+                  <div className={rc(i)} style={{ width:26, fontSize:i<3?17:12, textAlign:"center", fontFamily:"Russo One,sans-serif" }}>{ri(i)}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:"Russo One,sans-serif", fontSize:16, letterSpacing:".04em" }}>{p.name}</div>
+                    {lpts !== null && <div style={{ fontSize:11, color:C.dim, marginTop:1 }}>Last race: +{lpts} pts</div>}
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontFamily:"Russo One,sans-serif", fontSize:22 }}>{p.pts}</div>
+                    <div style={{ fontSize:9, color:C.dim, letterSpacing:".1em", textTransform:"uppercase" }}>pts</div>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+
+          {next && (
+            <Card>
+              <ST color={C.teal}>Next Race Pick Order — {next.flag} {next.name}</ST>
+              <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Worst standing picks first · No duplicate drivers</div>
+              {order.map((p,i) => {
+                const hp = !!next.picks?.[p.id];
+                return (
+                  <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
+                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"#00C85320":i===0?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":i===0?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Russo One,sans-serif", color:hp?C.green:i===0?"#fff":C.dim, flexShrink:0 }}>
+                      {hp ? "✓" : i+1}
+                    </div>
+                    <div style={{ flex:1, fontSize:14, fontWeight:500 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:C.dim }}>{p.pts} pts</div>
+                    {i===0 && !hp && <Badge color={C.red}>First Pick</Badge>}
+                    {hp && <Badge color={C.green}>✓ In</Badge>}
+                  </div>
+                );
+              })}
+            </Card>
+          )}
+        </div>
+      );
+    }
+
+    // ── This Race ────────────────────────────────────────────────────────────────
+
+    function RaceTab({ data, update, showToast }) {
+      const next = data.races.find(r => r.status !== "completed");
+      const [who, setWho]         = useState("");
+      const [driver, setDriver]   = useState("");
+      const [done, setDone]       = useState(false);
+      const [sending, setSending] = useState(false);
+      const [err, setErr]         = useState("");
+
+      if (!next) return (
+        <div className="anim">
+          <Card style={{ textAlign:"center", padding:"50px 20px" }}>
+            <div style={{ fontSize:46, marginBottom:12 }}>🏁</div>
+            <div style={{ fontFamily:"Russo One,sans-serif", fontSize:18, marginBottom:8 }}>No Upcoming Race</div>
+            <div style={{ fontSize:13, color:C.dim }}>Admin needs to open picks for the next race.</div>
+          </Card>
+        </div>
+      );
+
+      const days      = daysUntil(next.date);
+      const locked    = days <= 2 || next.status === "locked";
+      const picks     = next.picks || {};
+      const order     = pickOrder(data.players, data.races);
+      const taken     = Object.values(picks);
+      const available = DRIVERS.filter(d => !taken.includes(d));
+      const allPicked = data.players.every(p => picks[p.id]);
+      const myName    = data.players.find(p => p.id === who)?.name;
+
+      async function submit() {
+        if (!who)       { setErr("Please select your name."); return; }
+        if (!driver)    { setErr("Please select a driver."); return; }
+        if (picks[who]) { setErr("You already locked in a pick!"); return; }
+        setSending(true);
+        const newPicks = { ...picks, [who]: driver };
+        const races    = data.races.map(r => r.id === next.id ? { ...r, picks: newPicks } : r);
+        const newData  = { ...data, races };
+        await update(newData);
+        const nextPicker = order.find(p => !newPicks[p.id]);
+        if (nextPicker) {
+          const sent = await sendPickEmail({ toPlayer: nextPicker, nextRace: next, takenDrivers: Object.values(newPicks), allPlayers: data.players, allRaces: data.races });
+          if (sent) showToast(`📧 Reminder sent to ${nextPicker.name}!`);
+        }
+        setSending(false);
+        setDone(true);
+        setErr("");
+      }
+
+      return (
+        <div className="anim">
+          <div style={{ background:"linear-gradient(135deg,#0F1115 0%,#180808 100%)", border:`1px solid ${C.border}`, borderTop:`3px solid ${C.red}`, borderRadius:16, padding:20, marginBottom:14 }}>
+            <div style={{ fontSize:40, marginBottom:5 }}>{next.flag}</div>
+            <div style={{ fontFamily:"Russo One,sans-serif", fontSize:20, textTransform:"uppercase", letterSpacing:".03em", marginBottom:4 }}>{next.name}</div>
+            <div style={{ fontSize:12, color:C.dim, marginBottom:12 }}>{next.location} · {fmtDate(next.date)}</div>
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+              {next.hasSprint && <Badge color={C.orange}>Sprint Weekend</Badge>}
+              {locked ? <Badge color={C.red}>🔒 Picks Locked</Badge>
+                : days === 0 ? <Badge color={C.red}>Locks Today!</Badge>
+                : <Badge color={C.green}>🟢 Open · {days}d to deadline</Badge>}
+            </div>
+          </div>
+
+          <Card>
+            <ST color={C.teal}>Pick Status</ST>
+            {order.map((p,i) => {
+              const hp     = !!picks[p.id];
+              const isNext = !hp && order.findIndex(x => !picks[x.id]) === i;
+              return (
+                <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
+                  <div style={{ width:27, height:27, borderRadius:"50%", flexShrink:0, background:hp?"#00C85318":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, fontFamily:"Russo One,sans-serif", color:hp?C.green:isNext?"#fff":C.muted }}>
+                    {hp ? "✓" : i+1}
+                  </div>
+                  <div style={{ flex:1, fontSize:14, fontWeight:600 }}>{p.name}</div>
+                  <div style={{ fontSize:12 }}>
+                    {hp
+                      ? (locked||allPicked) ? <span style={{ color:C.green, fontWeight:600 }}>{picks[p.id]}</span> : <span style={{ color:C.green }}>✓ Locked In</span>
+                      : isNext ? <span style={{ color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>
+                      : <span style={{ color:C.muted }}>Waiting...</span>}
+                  </div>
+                </div>
+              );
+            })}
+            {allPicked && <div style={{ marginTop:10, padding:10, background:"#00C85310", border:`1px solid #00C85330`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All picks are in! 🎉</div>}
+          </Card>
+
+          {!locked && !done && (
+            <Card>
+              <ST>Lock In Your Pick</ST>
+              {err && <div style={{ color:C.red, fontSize:12, marginBottom:10 }}>{err}</div>}
+              <div style={{ marginBottom:11 }}>
+                <Lbl>Who are you?</Lbl>
+                <Sel value={who} onChange={e => setWho(e.target.value)}>
+                  <option value="">Select your name...</option>
+                  {data.players.filter(p => !picks[p.id]).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Sel>
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <Lbl>Your Driver</Lbl>
+                <Sel value={driver} onChange={e => setDriver(e.target.value)}>
+                  <option value="">Select a driver...</option>
+                  {available.map(d => <option key={d} value={d}>{d}</option>)}
+                </Sel>
+              </div>
+              <Btn onClick={submit} disabled={sending}>{sending ? "Saving..." : "🔒 Lock In Pick"}</Btn>
+            </Card>
+          )}
+
+          {locked && !allPicked && (
+            <Card style={{ borderColor:"#E1060030", background:"#180808" }}>
+              <div style={{ fontSize:13, color:C.dim, textAlign:"center" }}>🔒 Pick window is closed. Picks reveal after the race.</div>
+            </Card>
+          )}
+
+          {done && (
+            <Card style={{ borderColor:"#00C85340", background:"#001a0e", textAlign:"center" }}>
+              <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
+              <div style={{ fontFamily:"Russo One,sans-serif", fontSize:18, color:C.green, marginBottom:6 }}>Pick Locked!</div>
+              <div style={{ fontSize:13, color:C.dim }}>Good luck, {myName}!</div>
+            </Card>
+          )}
+        </div>
+      );
+    }
+
+    // ── Calendar ─────────────────────────────────────────────────────────────────
+
+    function CalendarTab({ data }) {
+      const [openId, setOpenId] = useState(null);
+      const upcoming  = data.races.filter(r => r.status !== "completed");
+      const completed = data.races.filter(r => r.status === "completed");
+
+      function StatusBadge({ race }) {
+        if (race.status === "picks_open") return <Badge color={C.green}>🟢 Picks Open</Badge>;
+        if (race.status === "locked")     return <Badge color={C.red}>🔒 Locked</Badge>;
+        const d = daysUntil(race.date);
+        if (d <= 14) return <Badge color={C.orange}>{d}d away</Badge>;
+        return <span style={{ fontSize:11, color:C.dim }}>{fmtShort(race.date)}</span>;
+      }
+
+      return (
+        <div className="anim">
+          <Card>
+            <ST color={C.teal}>2026 Season · {upcoming.length} Races Remaining</ST>
+            {upcoming.map((r,i) => (
+              <div key={r.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:i<upcoming.length-1?`1px solid ${C.border}`:"none" }}>
+                <div style={{ fontSize:20, flexShrink:0, width:28, textAlign:"center" }}>{r.flag}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>{r.name}</div>
+                  <div style={{ fontSize:11, color:C.dim }}>{r.location}</div>
+                </div>
+                <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+                  {r.hasSprint && <Badge color={C.orange}>S</Badge>}
+                  <StatusBadge race={r} />
+                </div>
+              </div>
+            ))}
+          </Card>
+
+          <Card>
+            <ST>Completed Races</ST>
+            {completed.map((r,i) => {
+              const isOpen  = openId === r.id;
+              const ranked  = r.noLeague ? null : [...data.players].map(p => { const pts=r.points?.[p.id]||{s:0,r:0}; return {...p, s:pts.s||0, r:pts.r||0, total:(pts.s||0)+(pts.r||0), driver:r.picks?.[p.id]}; }).sort((a,b) => b.total-a.total);
+              const winner  = ranked?.[0];
+              return (
+                <div key={r.id} style={{ borderBottom:i<completed.length-1?`1px solid ${C.border}`:"none" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", cursor:ranked?"pointer":"default" }} onClick={() => ranked && setOpenId(isOpen ? null : r.id)}>
+                    <div style={{ fontSize:22, flexShrink:0 }}>{r.flag}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontFamily:"Russo One,sans-serif", fontSize:14, textTransform:"uppercase", letterSpacing:".03em" }}>{r.name}</div>
+                      <div style={{ fontSize:11, color:C.dim }}>{fmtShort(r.date)}</div>
+                    </div>
+                    {winner && <div style={{ textAlign:"right", marginRight:6 }}>
+                      <div style={{ fontSize:10, color:C.dim }}>Winner</div>
+                      <div style={{ fontFamily:"Russo One,sans-serif", fontSize:12, color:C.gold }}>{winner.name}</div>
+                    </div>}
+                    {r.noLeague && <span style={{ fontSize:11, color:C.muted }}>Pre-league</span>}
+                    {ranked && <div style={{ color:C.dim, fontSize:12 }}>{isOpen ? "▲" : "▼"}</div>}
+                  </div>
+                  {isOpen && ranked && (
+                    <div style={{ marginBottom:10 }}>
+                      {ranked.map((p,j) => (
+                        <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 0", borderBottom:j<ranked.length-1?`1px solid ${C.border}`:"none" }}>
+                          <div style={{ fontSize:j<3?15:11, width:20, textAlign:"center" }} className={j===0?"rg":j===1?"rs":j===2?"rb":""}>{j===0?"👑":j===1?"🥈":j===2?"🥉":`#${j+1}`}</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:13, fontWeight:600 }}>{p.name}</div>
+                            <div style={{ fontSize:11, color:C.dim }}>{p.driver || "—"}</div>
+                          </div>
+                          <div style={{ textAlign:"right", fontSize:11, color:C.dim }}>
+                            {r.hasSprint && <div>Sprint +{p.s}</div>}
+                            <div>Race +{p.r}</div>
+                          </div>
+                          <div style={{ fontFamily:"Russo One,sans-serif", fontSize:19, minWidth:34, textAlign:"right" }}>{p.total}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </Card>
+        </div>
+      );
+    }
+
+    // ── Admin ─────────────────────────────────────────────────────────────────────
+
+    function AdminTab({ data, update, showToast }) {
+      const [pin, setPin]   = useState("");
+      const [auth, setAuth] = useState(false);
+      const [sec, setSec]   = useState("results");
+      const [newPin, setNewPin] = useState("");
+      const [raceId, setRaceId] = useState("");
+      const [sprintOrd, setSprintOrd] = useState(Array(8).fill(""));
+      const [raceOrd,   setRaceOrd]   = useState(Array(10).fill(""));
+      const [emails, setEmails] = useState(() => { const e={}; data.players.forEach(p => { e[p.id]=p.email||""; }); return e; });
+      const [preview, setPreview] = useState(null);
+
+      if (!auth) return (
+        <div className="anim">
+          <Card style={{ maxWidth:340, margin:"40px auto" }}>
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <div style={{ fontSize:32, marginBottom:6 }}>⚙️</div>
+              <div style={{ fontFamily:"Russo One,sans-serif", fontSize:17, marginBottom:3 }}>Admin Panel</div>
+              <div style={{ fontSize:12, color:C.dim }}>Commissioner access only</div>
+            </div>
+            <Lbl>PIN</Lbl>
+            <Inp type="password" value={pin} onChange={e => setPin(e.target.value)} placeholder="Enter PIN" style={{ marginBottom:10 }}
+              onKeyDown={e => e.key==="Enter" && (pin===data.adminPin ? setAuth(true) : showToast("Wrong PIN ❌"))} />
+            <Btn onClick={() => pin===data.adminPin ? setAuth(true) : showToast("Wrong PIN ❌")} style={{ width:"100%", textAlign:"center" }}>Unlock</Btn>
+            <div style={{ fontSize:10, color:C.muted, marginTop:10, textAlign:"center" }}>Default PIN: f1 — change it after first login</div>
+          </Card>
+        </div>
+      );
+
+      const upcoming  = data.races.filter(r => r.status !== "completed");
+      const selRace   = data.races.find(r => r.id === raceId);
+
+      function saveResults() {
+        if (!raceId || !selRace) { showToast("Select a race first"); return; }
+        const pts = {};
+        data.players.forEach(p => {
+          const drv = selRace.picks?.[p.id];
+          if (!drv) { pts[p.id]={s:0,r:0}; return; }
+          let s = 0;
+          if (selRace.hasSprint) { const pos=sprintOrd.indexOf(drv); if(pos>=0&&pos<8) s=SPR_PTS[pos]; }
+          const rpos = raceOrd.indexOf(drv);
+          const r = (rpos>=0&&rpos<10) ? GP_PTS[rpos] : 0;
+          pts[p.id] = {s, r};
+        });
+        update({ ...data, races: data.races.map(r => r.id===raceId ? {...r, status:"completed", points:pts} : r) });
+        showToast("Points saved ✅");
+        setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
+      }
+
+      function saveEmails() {
+        const players = data.players.map(p => ({...p, email: emails[p.id]||""}));
+        update({ ...data, players });
+        showToast("Emails saved ✅");
+      }
+
+      async function sendTest(player) {
+        showToast("Sending test email...");
+        const sent = await sendPickEmail({ toPlayer:{...player, email:emails[player.id]}, nextRace:upcoming[0]||data.races[0], takenDrivers:[], allPlayers:data.players, allRaces:data.races });
+        showToast(sent ? `Test sent to ${player.name} ✅` : "Send failed — check EmailJS config ❌");
+      }
+
+      function previewEmail(player) {
+        const next  = upcoming[0];
+        const picks = next?.picks || {};
+        const order = pickOrder(data.players, data.races);
+        const pos   = order.findIndex(p => p.id === player.id) + 1;
+        setPreview({
+          to: emails[player.id] || "(no email set)",
+          subject: `F1 Fantasy — Your turn to pick! 🏎 ${next?.name||""}`,
+          body: `Hey ${player.name}!\n\nIt's your turn to pick for the ${next?.name||"upcoming race"} on ${fmtShort(next?.date||"")}.\n\nYou are pick #${pos} in the order.\n\nDrivers already taken: ${Object.values(picks).join(", ")||"None — you're first!"}\n\nLock in your pick before the deadline:\n→ ${window.location.href}\n\nGood luck! 🏎\n— F1 Fantasy League`,
+        });
+      }
+
+      const SECS = [["results","📊 Results"],["races","🏁 Races"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
+
+      return (
+        <div className="anim">
+          <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+            {SECS.map(([id,lbl]) => (
+              <button key={id} className="th bp" onClick={() => setSec(id)} style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", padding:"7px 11px", borderRadius:8, cursor:"pointer", border:`1px solid ${sec===id?C.red:C.border}`, background:sec===id?"#1a0000":"transparent", color:sec===id?C.red:C.dim }}>{lbl}</button>
+            ))}
+          </div>
+
+          {sec==="results" && (
+            <Card>
+              <ST>Enter Race Results</ST>
+              <div style={{ marginBottom:12 }}>
+                <Lbl>Select Race</Lbl>
+                <Sel value={raceId} onChange={e => { setRaceId(e.target.value); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill("")); }}>
+                  <option value="">Choose a race...</option>
+                  {upcoming.map(r => <option key={r.id} value={r.id}>{r.flag} {r.name}</option>)}
+                </Sel>
+              </div>
+              {selRace && <>
+                <div style={{ fontSize:12, color:C.dim, marginBottom:14, padding:"9px 11px", background:"#1a1d22", borderRadius:8 }}>
+                  Picks: {Object.entries(selRace.picks||{}).map(([id,drv]) => `${data.players.find(p=>p.id===id)?.name} → ${drv}`).join(" · ") || "No picks yet"}
+                </div>
+                {selRace.hasSprint && (
+                  <div style={{ marginBottom:16 }}>
+                    <ST color={C.orange}>Sprint Order (Top 8)</ST>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+                      {Array(8).fill(0).map((_,i) => (
+                        <div key={i} style={{ display:"flex", alignItems:"center", gap:5 }}>
+                          <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Russo One,sans-serif", flexShrink:0 }}>{i+1}.</div>
+                          <Sel value={sprintOrd[i]} onChange={e => { const o=[...sprintOrd]; o[i]=e.target.value; setSprintOrd(o); }}>
+                            <option value="">—</option>
+                            {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </Sel>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div style={{ marginBottom:16 }}>
+                  <ST>Race Order (Top 10)</ST>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+                    {Array(10).fill(0).map((_,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:5 }}>
+                        <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Russo One,sans-serif", flexShrink:0 }}>{i+1}.</div>
+                        <Sel value={raceOrd[i]} onChange={e => { const o=[...raceOrd]; o[i]=e.target.value; setRaceOrd(o); }}>
+                          <option value="">—</option>
+                          {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </Sel>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <Btn onClick={saveResults}>Calculate & Save Points ✅</Btn>
+              </>}
+            </Card>
+          )}
+
+          {sec==="races" && (
+            <Card>
+              <ST>Manage Upcoming Races</ST>
+              {upcoming.map(r => (
+                <div key={r.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 0", borderBottom:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:20, flexShrink:0 }}>{r.flag}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:600 }}>{r.name}</div>
+                    <div style={{ fontSize:11, color:C.dim }}>{r.date} · {Object.keys(r.picks||{}).length}/4 picked · <span style={{ color:r.status==="picks_open"?C.green:r.status==="locked"?C.red:C.muted }}>{r.status}</span></div>
+                  </div>
+                  <div style={{ display:"flex", gap:5, flexShrink:0 }}>
+                    {r.status==="upcoming" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"picks_open"}:x)})} style={{ fontSize:9, padding:"5px 9px" }}>Open</Btn>}
+                    {r.status!=="locked"   && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"locked"}:x)})}     style={{ fontSize:9, padding:"5px 9px" }}>Lock</Btn>}
+                  </div>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          {sec==="emails" && (
+            <>
+              <Card>
+                <ST>Player Emails</ST>
+                {data.players.map(p => (
+                  <div key={p.id} style={{ marginBottom:10 }}>
+                    <Lbl>{p.name}</Lbl>
+                    <Inp type="email" value={emails[p.id]||""} onChange={e => setEmails({...emails,[p.id]:e.target.value})} placeholder={`${p.name.split(" ")[0].toLowerCase()}@email.com`} />
+                  </div>
+                ))}
+                <Btn onClick={saveEmails}>Save Emails</Btn>
+              </Card>
+              <Card>
+                <ST color={C.orange}>Email Preview &amp; Test</ST>
+                <div style={{ fontSize:12, color:C.dim, marginBottom:12, lineHeight:1.7 }}>
+                  When a player locks in their pick, the next player automatically gets an email. Make sure you've entered your EmailJS config values at the top of <code style={{ color:C.teal }}>index.html</code> first.
+                </div>
+                <div style={{ display:"grid", gap:7, marginBottom:preview?14:0 }}>
+                  {data.players.map(p => (
+                    <div key={p.id} style={{ display:"flex", gap:7 }}>
+                      <Btn variant="ghost" onClick={() => previewEmail(p)} style={{ flex:1, textAlign:"left", fontSize:10 }}>📧 Preview for {p.name}</Btn>
+                      <Btn variant="ghost" onClick={() => sendTest(p)} style={{ fontSize:10, padding:"8px 11px", color:C.teal }}>Send Test</Btn>
+                    </div>
+                  ))}
+                </div>
+                {preview && (
+                  <div>
+                    <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>To: <span style={{ color:"#ccc" }}>{preview.to}</span></div>
+                    <div style={{ fontSize:11, color:C.dim, marginBottom:9 }}>Subject: <span style={{ color:"#ccc" }}>{preview.subject}</span></div>
+                    <div style={{ background:"#0A0C10", borderRadius:9, padding:12, fontSize:12, lineHeight:1.8, color:"#ccc", whiteSpace:"pre-wrap" }}>{preview.body}</div>
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
+
+          {sec==="settings" && (
+            <Card>
+              <ST>Change Admin PIN</ST>
+              <Lbl>New PIN</Lbl>
+              <Inp type="password" value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="New PIN" style={{ marginBottom:10 }} />
+              <Btn onClick={() => {
+                if (newPin.length >= 2) { update({...data, adminPin:newPin}); setNewPin(""); showToast("PIN updated ✅"); }
+                else showToast("Must be 2+ characters");
+              }}>Update PIN</Btn>
+            </Card>
+          )}
+        </div>
+      );
+    }
+
+    // ── Root ──────────────────────────────────────────────────────────────────────
+
+    function App() {
+      const [data,   setData]   = useState(null);
+      const [tab,    setTab]    = useState("standings");
+      const [loaded, setLoaded] = useState(false);
+      const [toast,  setToast]  = useState("");
+      const toastTimer = useRef(null);
+
+      useEffect(() => {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        loadData().then(d => { setData(d); setLoaded(true); });
+        const unsub = subscribeData(d => setData(d));
+        return () => unsub();
+      }, []);
+
+      const update = useCallback(async (newData) => {
+        setData(newData);
+        await saveData(newData);
+      }, []);
+
+      function showToast(msg) {
+        setToast(msg);
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setToast(""), 3500);
+      }
+
+      if (!loaded) return (
+        <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ fontFamily:"Russo One,sans-serif", fontSize:24, color:C.red, letterSpacing:".2em" }}>LOADING...</div>
+        </div>
+      );
+
+      const TABS = [["standings","🏆","Standings"],["race","🏁","This Race"],["calendar","📅","Calendar"],["admin","⚙️","Admin"]];
+
+      return (
+        <>
+          {toast && (
+            <div style={{ position:"fixed", top:14, right:14, zIndex:999, background:"#1a1d22", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 15px", fontFamily:"DM Sans,sans-serif", fontSize:13, color:"#fff", boxShadow:"0 8px 32px #0008", maxWidth:270 }}>
+              {toast}
+            </div>
+          )}
+          <div style={{ minHeight:"100vh", background:C.bg, color:"#fff" }}>
+            <div style={{ background:"#0A0C10", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
+              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center" }}>
+                <div style={{ padding:"13px 0", marginRight:"auto" }}>
+                  <div style={{ fontFamily:"Russo One,sans-serif", fontSize:19, letterSpacing:".08em", display:"flex", alignItems:"center", gap:7 }}>
+                    <span style={{ color:C.red }}>F1</span>
+                    <span>FANTASY</span>
+                    <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.muted, fontWeight:400 }}>2026</span>
+                  </div>
+                </div>
+                {TABS.map(([id,icon,lbl]) => (
+                  <button key={id} className="th" onClick={() => setTab(id)} style={{ background:"none", border:"none", cursor:"pointer", padding:"14px 10px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", color:tab===id?"#fff":C.dim, borderBottom:`2px solid ${tab===id?C.red:"transparent"}`, transition:"all .2s", whiteSpace:"nowrap" }}>
+                    {icon} {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
+              {tab==="standings" && <StandingsTab data={data} />}
+              {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} />}
+              {tab==="calendar"  && <CalendarTab  data={data} />}
+              {tab==="admin"     && <AdminTab     data={data} update={update} showToast={showToast} />}
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
