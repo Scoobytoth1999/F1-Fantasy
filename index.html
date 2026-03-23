@@ -21,7 +21,6 @@
     };
   </script>
 
-
   <!-- ═══════════════════════════════════════════════════════════
        STEP 2 OF 3 — PASTE YOUR EMAILJS PUBLIC KEY HERE
        Get this from: emailjs.com → Account → API Keys
@@ -90,7 +89,7 @@
       "Lance Stroll","Pierre Gasly","Jack Doohan","Yuki Tsunoda",
       "Liam Lawson","Alexander Albon","Franco Colapinto","Nico Hulkenberg",
       "Gabriel Bortoleto","Oliver Bearman","Esteban Ocon","Isack Hadjar",
-      "Arvid Lindblad","Valtteri Bottas",
+      "Arvid Lindblad","Valtteri Bottas","Lewis Hamilton",
     ];
 
     const ALL_RACES = [
@@ -396,7 +395,7 @@
                   <div style={{ flex:1, fontSize:14, fontWeight:600 }}>{p.name}</div>
                   <div style={{ fontSize:12 }}>
                     {hp
-                      ? (locked||allPicked) ? <span style={{ color:C.green, fontWeight:600 }}>{picks[p.id]}</span> : <span style={{ color:C.green }}>✓ Locked In</span>
+                      ? <span style={{ color:C.green, fontWeight:600 }}>{picks[p.id]}</span>
                       : isNext ? <span style={{ color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>
                       : <span style={{ color:C.muted }}>Waiting...</span>}
                   </div>
