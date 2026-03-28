@@ -167,34 +167,6 @@
       });
     }
 
-    // ── Chat Firebase ───────────────────────────────────────────────────────────
-
-    async function postMessage(playerId, playerName, text) {
-      if (!db) return;
-      try {
-        await db.collection("f1fantasy-chat").add({
-          playerId, playerName, text,
-          ts: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      } catch(e) { console.error("Chat post error:", e); }
-    }
-
-    function subscribeChat(callback) {
-      if (!db) return () => {};
-      return db.collection("f1fantasy-chat")
-        .orderBy("ts", "asc")
-        .limitToLast(100)
-        .onSnapshot(snap => {
-          const msgs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-          callback(msgs);
-        });
-    }
-
-    async function deleteMessage(id) {
-      if (!db) return;
-      try { await db.collection("f1fantasy-chat").doc(id).delete(); } catch(e) { console.error(e); }
-    }
-
     // ── EmailJS ─────────────────────────────────────────────────────────────────
 
     async function sendPickEmail({ toPlayer, nextRace, takenDrivers, allPlayers, allRaces }) {
@@ -232,8 +204,17 @@
     function standings(players, races) {
       return [...players].map(p => ({...p, pts: total(p, races)})).sort((a,b) => b.pts - a.pts);
     }
+    function lastRacePts(player, races) {
+      const last = [...races].reverse().find(r => r.status === "completed" && !r.noLeague);
+      if (!last) return 0;
+      const p = last.points?.[player.id];
+      return p ? (p.s||0)+(p.r||0) : 0;
+    }
     function pickOrder(players, races) {
-      return [...standings(players, races)].reverse();
+      // Reverse order of last race results — worst last race picks first
+      return [...players]
+        .map(p => ({...p, lastPts: lastRacePts(p, races)}))
+        .sort((a,b) => a.lastPts - b.lastPts);
     }
     function daysUntil(d) {
       return Math.ceil((new Date(d) - new Date()) / 86400000);
@@ -326,22 +307,29 @@
 
           {next && (
             <Card>
-              <ST color={C.teal}>Next Race Pick Order — {next.flag} {next.name}</ST>
-              <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Worst standing picks first · No duplicate drivers</div>
+              <ST color={C.teal}>{next.flag} {next.name} — Picks</ST>
+              <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>
+                Based on last race result · Worst picks first · No duplicate drivers
+              </div>
               {order.map((p,i) => {
-                const hp = !!next.picks?.[p.id];
+                const hp     = !!next.picks?.[p.id];
+                const isNext = !hp && order.findIndex(x => !next.picks?.[x.id]) === i;
                 return (
-                  <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
-                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"#00C85320":i===0?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":i===0?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Russo One,sans-serif", color:hp?C.green:i===0?"#fff":C.dim, flexShrink:0 }}>
+                  <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
+                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"#00C85320":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Russo One,sans-serif", color:hp?C.green:isNext?"#fff":C.dim, flexShrink:0 }}>
                       {hp ? "✓" : i+1}
                     </div>
-                    <div style={{ flex:1, fontSize:14, fontWeight:500 }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:C.dim }}>{p.pts} pts</div>
-                    {i===0 && !hp && <Badge color={C.red}>First Pick</Badge>}
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:14, fontWeight:500 }}>{p.name}</div>
+                      {hp && <div style={{ fontSize:12, color:C.green, fontWeight:600, marginTop:1 }}>{next.picks[p.id]}</div>}
+                    </div>
+                    {isNext && <span style={{ fontSize:12, color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>}
+                    {!hp && !isNext && <span style={{ fontSize:11, color:C.muted }}>Waiting...</span>}
                     {hp && <Badge color={C.green}>✓ In</Badge>}
                   </div>
                 );
               })}
+              {next.hasSprint && <div style={{ marginTop:10, padding:"7px 10px", background:"#FF800010", border:"1px solid #FF800030", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
             </Card>
           )}
         </div>
@@ -756,7 +744,27 @@
       );
     }
 
-    // ── Chat ─────────────────────────────────────────────────────────────────────
+    // ── Chat Firebase ───────────────────────────────────────────────────────────
+
+    async function postMessage(playerId, playerName, text) {
+      if (!db) return;
+      try {
+        await db.collection("f1fantasy-chat").add({
+          playerId, playerName, text,
+          ts: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch(e) { console.error("Chat error:", e); }
+    }
+
+    function subscribeChat(callback) {
+      if (!db) return () => {};
+      return db.collection("f1fantasy-chat")
+        .orderBy("ts", "asc")
+        .limitToLast(100)
+        .onSnapshot(snap => callback(snap.docs.map(d => ({ id:d.id, ...d.data() }))));
+    }
+
+    // ── Chat Tab ─────────────────────────────────────────────────────────────────
 
     function ChatTab({ players }) {
       const [msgs,    setMsgs]    = useState([]);
@@ -849,7 +857,6 @@
 
     // ── Root ──────────────────────────────────────────────────────────────────────
 
-
     function App() {
       const [data,   setData]   = useState(null);
       const [tab,    setTab]    = useState("standings");
@@ -881,7 +888,7 @@
         </div>
       );
 
-      const TABS = [["standings","🏆","Standings"],["race","🏁","This Race"],["calendar","📅","Calendar"],["chat","💬","Chat"],["admin","⚙️","Admin"]];
+      const TABS = [["standings","🏆","Standings"],["race","🏁","Pick Driver"],["calendar","📅","Calendar"],["chat","💬","Chat"],["admin","⚙️","Admin"]];
 
       return (
         <>
@@ -892,19 +899,23 @@
           )}
           <div style={{ minHeight:"100vh", background:C.bg, color:"#fff" }}>
             <div style={{ background:"#0A0C10", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
-              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center" }}>
-                <div style={{ padding:"13px 0", marginRight:"auto" }}>
+              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ padding:"13px 0" }}>
                   <div style={{ fontFamily:"Russo One,sans-serif", fontSize:19, letterSpacing:".08em", display:"flex", alignItems:"center", gap:7 }}>
                     <span style={{ color:C.red }}>F1</span>
                     <span>FANTASY</span>
                     <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.muted, fontWeight:400 }}>2026</span>
                   </div>
                 </div>
-                {TABS.map(([id,icon,lbl]) => (
-                  <button key={id} className="th" onClick={() => setTab(id)} style={{ background:"none", border:"none", cursor:"pointer", padding:"14px 10px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", color:tab===id?"#fff":C.dim, borderBottom:`2px solid ${tab===id?C.red:"transparent"}`, transition:"all .2s", whiteSpace:"nowrap" }}>
-                    {icon} {lbl}
-                  </button>
-                ))}
+                <select
+                  value={tab}
+                  onChange={e => setTab(e.target.value)}
+                  style={{ background:"#1a1d22", border:`1px solid ${C.border}`, borderRadius:8, color:"#fff", padding:"7px 32px 7px 12px", fontFamily:"DM Sans,sans-serif", fontSize:12, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23E10600' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 10px) center" }}
+                >
+                  {TABS.map(([id,icon,lbl]) => (
+                    <option key={id} value={id}>{icon} {lbl}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
