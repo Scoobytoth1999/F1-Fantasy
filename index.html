@@ -615,7 +615,7 @@
         });
       }
 
-      const SECS = [["results","📊 Results"],["races","🏁 Races"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
+      const SECS = [["results","📊 Results"],["races","🏁 Races"],["picks","✏️ Edit Picks"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
 
       return (
         <div className="anim">
@@ -693,8 +693,56 @@
             </Card>
           )}
 
+          {sec==="picks" && (
+            <Card>
+              <ST color={C.orange}>Edit Picks</ST>
+              {upcoming.length === 0 && (
+                <div style={{ fontSize:13, color:C.dim, textAlign:"center", padding:"20px 0" }}>No upcoming races with picks to edit.</div>
+              )}
+              {upcoming.filter(r => Object.keys(r.picks||{}).length > 0).map(race => (
+                <div key={race.id} style={{ marginBottom:20 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:C.teal, letterSpacing:".1em", textTransform:"uppercase", marginBottom:10 }}>{race.flag} {race.name}</div>
+                  {data.players.map(p => {
+                    const currentPick = race.picks?.[p.id] || "";
+                    return (
+                      <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 0", borderBottom:`1px solid ${C.border}` }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13, fontWeight:600 }}>{p.name}</div>
+                          <div style={{ fontSize:11, color:currentPick ? C.green : C.muted, marginTop:1 }}>{currentPick || "No pick yet"}</div>
+                        </div>
+                        <Sel
+                          value={currentPick}
+                          onChange={e => {
+                            const newPick = e.target.value;
+                            const newPicks = { ...race.picks };
+                            if (newPick === "") {
+                              delete newPicks[p.id];
+                            } else {
+                              newPicks[p.id] = newPick;
+                            }
+                            const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks } : r);
+                            update({ ...data, races });
+                            showToast(newPick ? `${p.name} → ${newPick} ✅` : `${p.name}'s pick cleared ✅`);
+                          }}
+                          style={{ width:"auto", minWidth:160 }}
+                        >
+                          <option value="">— Clear pick —</option>
+                          {DRIVERS.filter(d => d === currentPick || !Object.values(race.picks||{}).includes(d)).map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </Sel>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              {upcoming.length > 0 && upcoming.every(r => Object.keys(r.picks||{}).length === 0) && (
+                <div style={{ fontSize:13, color:C.dim, textAlign:"center", padding:"20px 0" }}>No picks have been made yet for upcoming races.</div>
+              )}
+            </Card>
+          )}
+
           {sec==="emails" && (
-            <>
               <Card>
                 <ST>Player Emails</ST>
                 {data.players.map(p => (
