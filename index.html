@@ -120,10 +120,12 @@
     const DEFAULT_DATA = {
       adminPin: "f1",
       players: [
-        { id:"lewis",     name:"Lewis",         email:"" },
-        { id:"zayd",      name:"Zayd",          email:"" },
-        { id:"toth",      name:"Mr. Toth",      email:"" },
-        { id:"mcmichael", name:"Mr. McMichael", email:"" },
+        { id:"lewis",     name:"Lewis",          email:"" },
+        { id:"zayd",      name:"Zayd",           email:"" },
+        { id:"toth",      name:"Mr. Toth",       email:"" },
+        { id:"mcmichael", name:"Mr. McMichael",  email:"" },
+        { id:"hattner",   name:"Mrs. Hattner",   email:"mhattner@cranbrook.edu" },
+        { id:"yogesh",    name:"Yogesh",          email:"ysomani31@cranbrook.edu" },
       ],
       races: ALL_RACES,
     };
@@ -218,6 +220,9 @@
     }
     function daysUntil(d) {
       return Math.ceil((new Date(d) - new Date()) / 86400000);
+    }
+    function hoursUntil(d) {
+      return (new Date(d) - new Date()) / 3600000;
     }
     function fmtDate(d) {
       return new Date(d).toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" });
@@ -340,11 +345,12 @@
 
     function RaceTab({ data, update, showToast }) {
       const next = data.races.find(r => r.status !== "completed");
-      const [who, setWho]         = useState("");
-      const [driver, setDriver]   = useState("");
-      const [done, setDone]       = useState(false);
-      const [sending, setSending] = useState(false);
-      const [err, setErr]         = useState("");
+      const [who, setWho]           = useState("");
+      const [driver, setDriver]     = useState("");
+      const [done, setDone]         = useState(false);
+      const [sending, setSending]   = useState(false);
+      const [confirming, setConfirming] = useState(false);
+      const [err, setErr]           = useState("");
 
       if (!next) return (
         <div className="anim">
@@ -356,21 +362,25 @@
         </div>
       );
 
-      const days      = daysUntil(next.date);
-      const locked    = days <= 2 || next.status === "locked";
-      const picks     = next.picks || {};
-      const order     = pickOrder(data.players, data.races);
-      const taken     = Object.values(picks);
-      const available = DRIVERS.filter(d => !taken.includes(d));
-      const allPicked = data.players.every(p => picks[p.id]);
-      const myName    = data.players.find(p => p.id === who)?.name;
+      const days        = daysUntil(next.date);
+      const hours       = hoursUntil(next.date);
+      const locked      = hours <= 0 || next.status === "locked";
+      const freeForAll  = hours > 0 && hours <= 12 && next.status !== "locked";
+      const picks       = next.picks || {};
+      const order       = pickOrder(data.players, data.races);
+      const taken       = Object.values(picks);
+      const available   = DRIVERS.filter(d => !taken.includes(d));
+      const allPicked   = data.players.every(p => picks[p.id]);
+      const myName      = data.players.find(p => p.id === who)?.name;
 
       async function submit() {
         if (!who)       { setErr("Please select your name."); return; }
         if (!driver)    { setErr("Please select a driver."); return; }
         if (picks[who]) { setErr("You already locked in a pick!"); return; }
-        const currentTurn = order.find(p => !picks[p.id]);
-        if (currentTurn && currentTurn.id !== who) { setErr(`It's not your turn yet — waiting on ${currentTurn.name} to pick first.`); return; }
+        if (!freeForAll) {
+          const currentTurn = order.find(p => !picks[p.id]);
+          if (currentTurn && currentTurn.id !== who) { setErr(`It's not your turn yet — waiting on ${currentTurn.name} to pick first.`); return; }
+        }
         setSending(true);
         const newPicks = { ...picks, [who]: driver };
         const races    = data.races.map(r => r.id === next.id ? { ...r, picks: newPicks } : r);
@@ -395,6 +405,7 @@
             <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
               {next.hasSprint && <Badge color={C.orange}>Sprint Weekend</Badge>}
               {locked ? <Badge color={C.red}>🔒 Picks Locked</Badge>
+                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — under 12hrs!</Badge>
                 : days === 0 ? <Badge color={C.red}>Locks Today!</Badge>
                 : <Badge color={C.green}>🟢 Open · {days}d to deadline</Badge>}
             </div>
@@ -423,12 +434,12 @@
             {allPicked && <div style={{ marginTop:10, padding:10, background:"#00C85310", border:`1px solid #00C85330`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All picks are in! 🎉</div>}
           </Card>
 
-          {!locked && !done && (
+          {!locked && !done && !confirming && (
             <Card>
               <ST>Lock In Your Pick</ST>
               {err && <div style={{ color:C.red, fontSize:12, marginBottom:10 }}>{err}</div>}
               <div style={{ marginBottom:11 }}>
-                {(() => {
+                {!freeForAll && (() => {
                   const turn = order.find(p => !picks[p.id]);
                   return turn ? (
                     <div style={{ padding:"10px 12px", background:"#1a1d22", borderRadius:9, marginBottom:8 }}>
@@ -437,9 +448,18 @@
                     </div>
                   ) : null;
                 })()}
+                {freeForAll && (
+                  <div style={{ padding:"10px 12px", background:"#FF800015", border:"1px solid #FF800040", borderRadius:9, marginBottom:8 }}>
+                    <div style={{ fontSize:10, color:C.orange, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>⚡ Free-for-all — picks open to everyone</div>
+                    <div style={{ fontSize:12, color:C.dim }}>Less than 12 hours to race — anyone can pick now</div>
+                  </div>
+                )}
                 <Sel value={who} onChange={e => setWho(e.target.value)}>
-                  <option value="">Confirm — are you {order.find(p => !picks[p.id])?.name}?</option>
-                  {(() => { const turn = order.find(p => !picks[p.id]); return turn ? [turn].map(p => <option key={p.id} value={p.id}>{p.name}</option>) : null; })()}
+                  <option value="">{freeForAll ? "Select your name..." : `Confirm — are you ${order.find(p => !picks[p.id])?.name}?`}</option>
+                  {freeForAll
+                    ? data.players.filter(p => !picks[p.id]).map(p => <option key={p.id} value={p.id}>{p.name}</option>)
+                    : (() => { const turn = order.find(p => !picks[p.id]); return turn ? [turn].map(p => <option key={p.id} value={p.id}>{p.name}</option>) : null; })()
+                  }
                 </Sel>
               </div>
               <div style={{ marginBottom:14 }}>
@@ -449,11 +469,32 @@
                   {available.map(d => <option key={d} value={d}>{d}</option>)}
                 </Sel>
               </div>
-              <Btn onClick={submit} disabled={sending}>{sending ? "Saving..." : "🔒 Lock In Pick"}</Btn>
+              <Btn onClick={() => { if (!who) { setErr("Please select your name."); return; } if (!driver) { setErr("Please select a driver."); return; } setErr(""); setConfirming(true); }} disabled={sending}>Review My Pick →</Btn>
             </Card>
           )}
 
-          {locked && !allPicked && (
+          {confirming && (
+            <Card style={{ borderColor:"#FFD70040", background:"#0d0c00", textAlign:"center" }}>
+              <div style={{ fontSize:36, marginBottom:12 }}>🏎</div>
+              <div style={{ fontFamily:"Russo One,sans-serif", fontSize:11, letterSpacing:".2em", textTransform:"uppercase", color:C.dim, marginBottom:16 }}>Confirm Your Pick</div>
+              <div style={{ marginBottom:8 }}>
+                <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>You are</div>
+                <div style={{ fontFamily:"Russo One,sans-serif", fontSize:22, color:C.gold }}>{data.players.find(p => p.id === who)?.name}</div>
+              </div>
+              <div style={{ fontSize:20, color:C.muted, marginBottom:8 }}>→</div>
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>Picking driver</div>
+                <div style={{ fontFamily:"Russo One,sans-serif", fontSize:22, color:"#fff" }}>{driver}</div>
+              </div>
+              <div style={{ fontSize:11, color:C.dim, marginBottom:16 }}>for the {next.name}</div>
+              <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+                <Btn variant="ghost" onClick={() => setConfirming(false)}>← Go Back</Btn>
+                <Btn onClick={submit} disabled={sending}>{sending ? "Saving..." : "✅ Confirm Pick"}</Btn>
+              </div>
+            </Card>
+          )}
+
+          {!confirming && locked && !allPicked && (
             <Card style={{ borderColor:"#E1060030", background:"#180808" }}>
               <div style={{ fontSize:13, color:C.dim, textAlign:"center" }}>🔒 Pick window is closed. Picks reveal after the race.</div>
             </Card>
@@ -685,6 +726,37 @@
           )}
 
           {sec==="races" && (
+            <>
+            <Card>
+              <ST color={C.orange}>📧 Reminder Email Blast</ST>
+              <div style={{ fontSize:12, color:C.dim, marginBottom:12, lineHeight:1.7 }}>
+                Sends a "picks are now open to everyone" email to all players who haven't picked yet for the next open race.
+              </div>
+              <Btn onClick={async () => {
+                const openRace = upcoming.find(r => r.status === "picks_open");
+                if (!openRace) { showToast("No open race found"); return; }
+                const unpicked = data.players.filter(p => !openRace.picks?.[p.id]);
+                if (!unpicked.length) { showToast("Everyone has already picked!"); return; }
+                showToast("Sending reminders...");
+                let sent = 0;
+                for (const p of unpicked) {
+                  if (!p.email) continue;
+                  try {
+                    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                      to_email: p.email,
+                      to_name: p.name,
+                      race_name: openRace.name,
+                      race_date: fmtShort(openRace.date),
+                      pick_pos: "open to all",
+                      taken: Object.values(openRace.picks||{}).join(", ") || "None yet",
+                      app_url: window.location.href,
+                    }, EMAILJS_PUBLIC_KEY);
+                    sent++;
+                  } catch(e) { console.error(e); }
+                }
+                showToast(`Reminders sent to ${sent} player${sent !== 1 ? "s" : ""} ✅`);
+              }}>Send Reminder to Unpicked Players 📧</Btn>
+            </Card>
             <Card>
               <ST>Manage Upcoming Races</ST>
               {upcoming.map(r => (
@@ -692,7 +764,7 @@
                   <div style={{ fontSize:20, flexShrink:0 }}>{r.flag}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:600 }}>{r.name}</div>
-                    <div style={{ fontSize:11, color:C.dim }}>{r.date} · {Object.keys(r.picks||{}).length}/4 picked · <span style={{ color:r.status==="picks_open"?C.green:r.status==="locked"?C.red:C.muted }}>{r.status}</span></div>
+                    <div style={{ fontSize:11, color:C.dim }}>{r.date} · {Object.keys(r.picks||{}).length}/6 picked · <span style={{ color:r.status==="picks_open"?C.green:r.status==="locked"?C.red:C.muted }}>{r.status}</span></div>
                   </div>
                   <div style={{ display:"flex", gap:5, flexShrink:0 }}>
                     {r.status==="upcoming" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"picks_open"}:x)})} style={{ fontSize:9, padding:"5px 9px" }}>Open</Btn>}
@@ -701,6 +773,7 @@
                 </div>
               ))}
             </Card>
+            </>
           )}
 
           {sec==="picks" && (
@@ -856,7 +929,7 @@
         return d.toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
       }
 
-      const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E10600", mcmichael:"#FFD700" };
+      const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E10600", mcmichael:"#FFD700", hattner:"#B370FF", yogesh:"#00C853" };
       const SVG = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E\")";
 
       return (
