@@ -369,6 +369,8 @@
         if (!who)       { setErr("Please select your name."); return; }
         if (!driver)    { setErr("Please select a driver."); return; }
         if (picks[who]) { setErr("You already locked in a pick!"); return; }
+        const currentTurn = order.find(p => !picks[p.id]);
+        if (currentTurn && currentTurn.id !== who) { setErr(`It's not your turn yet — waiting on ${currentTurn.name} to pick first.`); return; }
         setSending(true);
         const newPicks = { ...picks, [who]: driver };
         const races    = data.races.map(r => r.id === next.id ? { ...r, picks: newPicks } : r);
@@ -426,10 +428,18 @@
               <ST>Lock In Your Pick</ST>
               {err && <div style={{ color:C.red, fontSize:12, marginBottom:10 }}>{err}</div>}
               <div style={{ marginBottom:11 }}>
-                <Lbl>Who are you?</Lbl>
+                {(() => {
+                  const turn = order.find(p => !picks[p.id]);
+                  return turn ? (
+                    <div style={{ padding:"10px 12px", background:"#1a1d22", borderRadius:9, marginBottom:8 }}>
+                      <div style={{ fontSize:10, color:C.dim, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>It's their turn to pick</div>
+                      <div style={{ fontSize:15, fontWeight:600, color:C.gold }}>{turn.name}</div>
+                    </div>
+                  ) : null;
+                })()}
                 <Sel value={who} onChange={e => setWho(e.target.value)}>
-                  <option value="">Select your name...</option>
-                  {data.players.filter(p => !picks[p.id]).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  <option value="">Confirm — are you {order.find(p => !picks[p.id])?.name}?</option>
+                  {(() => { const turn = order.find(p => !picks[p.id]); return turn ? [turn].map(p => <option key={p.id} value={p.id}>{p.name}</option>) : null; })()}
                 </Sel>
               </div>
               <div style={{ marginBottom:14 }}>
