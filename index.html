@@ -622,8 +622,10 @@
         </div>
       );
 
-      const upcoming  = data.races.filter(r => r.status !== "completed");
-      const selRace   = data.races.find(r => r.id === raceId);
+      const upcoming   = data.races.filter(r => r.status !== "completed");
+      const completed  = data.races.filter(r => r.status === "completed" && !r.noLeague);
+      const allRaces   = [...completed, ...upcoming];
+      const selRace    = data.races.find(r => r.id === raceId);
 
       function saveResults() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
@@ -637,7 +639,14 @@
           const r = (rpos>=0&&rpos<10) ? GP_PTS[rpos] : 0;
           pts[p.id] = {s, r};
         });
-        update({ ...data, races: data.races.map(r => r.id===raceId ? {...r, status:"completed", points:pts} : r) });
+        const isAlreadyCompleted = selRace.status === "completed";
+        update({ ...data, races: data.races.map(r => r.id===raceId ? {
+          ...r,
+          status: "completed",
+          points: pts,
+          // preserve pickOrder snapshot if editing completed race
+          ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
+        } : r) });
         showToast("Points saved ✅");
         setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
       }
@@ -678,14 +687,22 @@
 
           {sec==="results" && (
             <Card>
-              <ST>Enter Race Results</ST>
+              <ST>{selRace?.status === "completed" ? "Edit Race Results" : "Enter Race Results"}</ST>
               <div style={{ marginBottom:12 }}>
                 <Lbl>Select Race</Lbl>
                 <Sel value={raceId} onChange={e => { setRaceId(e.target.value); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill("")); }}>
                   <option value="">Choose a race...</option>
+                  {completed.length > 0 && <option disabled>── Completed ──</option>}
+                  {completed.map(r => <option key={r.id} value={r.id}>{r.flag} {r.name} ✓</option>)}
+                  {upcoming.length > 0 && <option disabled>── Upcoming ──</option>}
                   {upcoming.map(r => <option key={r.id} value={r.id}>{r.flag} {r.name}</option>)}
                 </Sel>
               </div>
+              {selRace?.status === "completed" && (
+                <div style={{ marginBottom:12, padding:"9px 11px", background:"#FF800015", border:"1px solid #FF800040", borderRadius:8, fontSize:12, color:C.orange }}>
+                  ✏️ Editing a completed race — only points will be updated. Pick order for future races is not affected.
+                </div>
+              )}
               {selRace && <>
                 <div style={{ fontSize:12, color:C.dim, marginBottom:14, padding:"9px 11px", background:"#1a1d22", borderRadius:8 }}>
                   Picks: {Object.entries(selRace.picks||{}).map(([id,drv]) => `${data.players.find(p=>p.id===id)?.name} → ${drv}`).join(" · ") || "No picks yet"}
@@ -720,7 +737,7 @@
                     ))}
                   </div>
                 </div>
-                <Btn onClick={saveResults}>Calculate & Save Points ✅</Btn>
+                <Btn onClick={saveResults}>{selRace?.status === "completed" ? "Update Points ✅" : "Calculate & Save Points ✅"}</Btn>
               </>}
             </Card>
           )}
