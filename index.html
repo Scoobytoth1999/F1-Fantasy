@@ -38,10 +38,6 @@
     const EMAILJS_TEMPLATE_ID = "template_fyi974o";
   </script>
 
-  <script>
-    const GNEWS_API_KEY = "ac9a6a108fa3134e5804b53745b504ab";
-  </script>
-
   <!-- Dependencies -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -313,9 +309,21 @@
       const [loading, setLoading] = useState(true);
 
       useEffect(() => {
-        fetch(`https://corsproxy.io/?https://gnews.io/api/v4/search?q=Formula+1+F1&lang=en&max=8&sortby=publishedAt&apikey=${GNEWS_API_KEY}`)
+        // rss2json converts RSS to JSON with CORS support
+        const feed = encodeURIComponent("https://feeds.bbci.co.uk/sport/formula1/rss.xml");
+        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${feed}&api_key=public&count=8`)
           .then(r => r.json())
-          .then(d => { setStories(d.articles || []); setLoading(false); })
+          .then(d => {
+            const items = (d.items || []).map(i => ({
+              title: i.title,
+              description: i.description?.replace(/<[^>]+>/g, "").slice(0, 150),
+              url: i.link,
+              publishedAt: i.pubDate,
+              source: { name: "BBC Sport F1" }
+            }));
+            setStories(items);
+            setLoading(false);
+          })
           .catch(() => setLoading(false));
       }, []);
 
