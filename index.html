@@ -309,39 +309,22 @@
       const [loading, setLoading] = useState(true);
 
       useEffect(() => {
-        // Use F1 news from The Race via rss2json
-        const feeds = [
-          { url: "https://the-race.com/feed/", name: "The Race" },
-          { url: "https://racingnews365.com/feed", name: "Racing News 365" },
-        ];
-        const tryFeed = (idx) => {
-          if (idx >= feeds.length) { setLoading(false); return; }
-          const { url, name } = feeds[idx];
-          fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&count=8`)
-            .then(r => r.json())
-            .then(d => {
-              if (d.status === "ok" && d.items?.length) {
-                const items = d.items
-                  .filter(i => /f1|formula|grand prix|verstappen|hamilton|norris|leclerc/i.test(i.title + " " + (i.categories||[]).join(" ")))
-                  .slice(0, 6)
-                  .map(i => ({
-                    title: i.title,
-                    description: (i.description||"").replace(/<[^>]+>/g, "").replace(/\s+/g," ").trim().slice(0, 150),
-                    url: i.link,
-                    publishedAt: i.pubDate,
-                    source: { name }
-                  }));
-                if (items.length) { setStories(items); setLoading(false); }
-                else tryFeed(idx + 1);
-              } else {
-                tryFeed(idx + 1);
-              }
-            })
-            .catch(() => tryFeed(idx + 1));
-        };
-        tryFeed(0);
+        // Fetch F1 news via public Motorsport.com widget API
+        fetch("https://widgets.motorsport.com/api/v0/article/list/?lang=en&edition_id=13&limit=8&format=json&nocache=" + Date.now())
+          .then(r => r.json())
+          .then(d => {
+            const items = (d.objects || []).map(i => ({
+              title: i.title,
+              description: (i.excerpt || "").replace(/<[^>]+>/g,"").trim().slice(0,150),
+              url: "https://www.motorsport.com" + (i.url || ""),
+              publishedAt: i.published,
+              source: { name: "Motorsport.com" }
+            }));
+            setStories(items);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
       }, []);
-
       function timeAgo(dateStr) {
         const diff = (Date.now() - new Date(dateStr)) / 60000;
         if (diff < 60) return `${Math.round(diff)}m ago`;
