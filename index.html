@@ -38,6 +38,10 @@
     const EMAILJS_TEMPLATE_ID = "template_fyi974o";
   </script>
 
+  <script>
+    const GNEWS_API_KEY = "ac9a6a108fa3134e5804b53745b504ab";
+  </script>
+
   <!-- Dependencies -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -46,29 +50,58 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #080A0C; color: #fff; font-family: 'DM Sans', sans-serif; }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: #111; }
-    ::-webkit-scrollbar-thumb { background: #E10600; border-radius: 2px; }
-    select option { background: #111; color: #fff; }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-    .anim { animation: fadeUp .25s ease forwards; }
-    .rg { color: #FFD700; text-shadow: 0 0 14px #FFD70055; }
-    .rs { color: #C0C0C0; }
-    .rb { color: #CD7F32; }
-    .bp { transition: opacity .15s, transform .1s; cursor: pointer; }
-    .bp:hover { opacity: .85; transform: translateY(-1px); }
-    .bp:active { transform: translateY(0); }
-    .th { transition: color .2s; }
-    .th:hover { color: #fff !important; }
-    input[type=date]::-webkit-calendar-picker-indicator { filter: invert(.5); }
-    input, select { outline: none; }
-    button { outline: none; }
+    :root {
+      --red:#E8002D; --red2:#FF1639; --gold:#FFD700; --silver:#C8C8C8; --bronze:#CD7F32;
+      --teal:#00D2BE; --orange:#FF8000; --green:#00C853;
+      --bg:#050507; --bg2:#08090D; --card:#0C0D12; --card2:#101118;
+      --border:#16181F; --border2:#1E2029; --dim:#5A5E70; --muted:#2E3040;
+      --text:#F0F0F5; --subtext:#8890A8;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden;
+    }
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:
+        repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(255,255,255,.012) 2px,rgba(255,255,255,.012) 4px),
+        repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(255,255,255,.008) 2px,rgba(255,255,255,.008) 4px);
+    }
+    body::after {
+      content:''; position:fixed; top:-120px; left:-80px; width:500px; height:400px;
+      background:radial-gradient(ellipse at center,rgba(232,0,45,.16) 0%,transparent 70%);
+      pointer-events:none; z-index:0;
+    }
+    #root { position:relative; z-index:1; }
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:var(--bg2); }
+    ::-webkit-scrollbar-thumb { background:var(--red); border-radius:2px; }
+    select option { background:#111; color:#fff; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+    @keyframes pulse  { 0%,100%{opacity:1;}50%{opacity:.4;} }
+    @keyframes spin   { to{transform:rotate(360deg);} }
+    .anim { animation:fadeUp .28s ease forwards; }
+    .rg { color:var(--gold); filter:drop-shadow(0 0 6px rgba(255,215,0,.4)); }
+    .rs { color:var(--silver); }
+    .rb { color:var(--bronze); }
+    .bp { transition:opacity .15s,transform .1s; cursor:pointer; }
+    .bp:hover  { opacity:.85; transform:translateY(-1px); }
+    .bp:active { transform:translateY(0); }
+    .nav-tab {
+      background:none; border:none; border-bottom:2px solid transparent;
+      cursor:pointer; padding:10px 13px; font-size:18px; color:var(--dim);
+      transition:all .18s; line-height:1; border-radius:8px 8px 0 0;
+    }
+    .nav-tab:hover { color:var(--text); background:rgba(255,255,255,.04); }
+    .nav-tab.active { color:var(--text); border-bottom-color:var(--red); background:rgba(232,0,45,.06); }
+    input[type=date]::-webkit-calendar-picker-indicator { filter:invert(.5); }
+    input, select, button { outline:none; }
+    .news-scroll::-webkit-scrollbar { width:3px; }
+    .news-scroll::-webkit-scrollbar-thumb { background:var(--red); border-radius:2px; }
   </style>
 </head>
 <body>
@@ -81,7 +114,7 @@
 
     const GP_PTS  = [25,18,15,12,10,8,6,4,2,1];
     const SPR_PTS = [8,7,6,5,4,3,2,1];
-    const C = { red:"#E10600", gold:"#FFD700", green:"#00C853", orange:"#FF8000", teal:"#00D2BE", bg:"#080A0C", card:"#0F1115", border:"#1C1E24", muted:"#3A3D46", dim:"#6B7280" };
+    const C = { red:"#E8002D", gold:"#FFD700", green:"#00C853", orange:"#FF8000", teal:"#00D2BE", bg:"#050507", card:"#0C0D12", border:"#16181F", muted:"#2E3040", dim:"#5A5E70" };
 
     const DRIVERS = [
       "Max Verstappen","Lando Norris","Charles Leclerc","Oscar Piastri",
@@ -224,6 +257,13 @@
     function hoursUntil(d) {
       return (new Date(d) - new Date()) / 3600000;
     }
+    // For sprint weekends, the key date is Saturday (GP date - 1 day)
+    function keyDate(race) {
+      if (!race.hasSprint) return race.date;
+      const d = new Date(race.date);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    }
     function fmtDate(d) {
       return new Date(d).toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" });
     }
@@ -268,26 +308,96 @@
 
     // ── Standings ────────────────────────────────────────────────────────────────
 
-    function StandingsTab({ data }) {
+    function NewsCard() {
+      const [stories, setStories] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        fetch(`https://gnews.io/api/v4/search?q=Formula+1+F1&lang=en&max=8&sortby=publishedAt&apikey=${GNEWS_API_KEY}`)
+          .then(r => r.json())
+          .then(d => { setStories(d.articles || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      function timeAgo(dateStr) {
+        const diff = (Date.now() - new Date(dateStr)) / 60000;
+        if (diff < 60) return `${Math.round(diff)}m ago`;
+        if (diff < 1440) return `${Math.round(diff/60)}h ago`;
+        return `${Math.round(diff/1440)}d ago`;
+      }
+
+      return (
+        <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden", marginBottom:14 }}>
+          <div style={{ padding:"15px 18px 13px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, display:"flex", alignItems:"center", gap:7 }}>
+              <div style={{ width:3, height:11, background:C.red, borderRadius:2 }}/>F1 News
+            </div>
+            <span style={{ background:"rgba(232,0,45,.12)", color:C.red, border:"1px solid rgba(232,0,45,.25)", borderRadius:6, padding:"2px 8px", fontSize:9, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase" }}>Live</span>
+          </div>
+          <div className="news-scroll" style={{ maxHeight:320, overflowY:"auto" }}>
+            {loading && (
+              <div style={{ padding:"30px 20px", textAlign:"center", color:C.dim, fontSize:12 }}>
+                <div style={{ width:18, height:18, border:`2px solid ${C.border}`, borderTopColor:C.red, borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 10px" }}/>
+                Loading news...
+              </div>
+            )}
+            {!loading && stories.length === 0 && (
+              <div style={{ padding:"30px 20px", textAlign:"center", color:C.dim, fontSize:12 }}>No stories found</div>
+            )}
+            {stories.map((s,i) => (
+              <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                style={{ display:"block", padding:"14px 18px", borderBottom:i<stories.length-1?`1px solid ${C.border}`:"none", textDecoration:"none" }}>
+                <div style={{ fontSize:9, fontWeight:600, letterSpacing:".16em", textTransform:"uppercase", color:C.red, marginBottom:4 }}>{s.source?.name || "F1 News"}</div>
+                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:14, lineHeight:1.35, color:"#F0F0F5", marginBottom:5, letterSpacing:"-.01em" }}>{s.title}</div>
+                <div style={{ fontSize:12, color:"#8890A8", lineHeight:1.6, marginBottom:4 }}>{(s.description||"").slice(0,120)}{(s.description||"").length>120?"...":""}</div>
+                <div style={{ fontSize:10, color:C.dim }}>{timeAgo(s.publishedAt)}</div>
+              </a>
+            ))}
+          </div>
+          <div style={{ padding:"9px 18px", textAlign:"center", fontSize:10, color:C.dim, letterSpacing:".1em", textTransform:"uppercase", borderTop:`1px solid ${C.border}` }}>↕ Scroll for more</div>
+        </div>
+      );
+    }
+
+    function StandingsTab({ data, latestMsg, setTab }) {
       const ranked = standings(data.players, data.races);
       const order  = pickOrder(data.players, data.races);
       const next   = data.races.find(r => r.status !== "completed");
       const last   = [...data.races].reverse().find(r => r.status === "completed" && !r.noLeague);
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
+      const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E8002D", mcmichael:"#FFD700", hattner:"#B370FF", yogesh:"#00C853" };
+
+      function msgTimeAgo(ts) {
+        if (!ts) return "";
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        const diff = (Date.now() - d) / 60000;
+        if (diff < 60) return `${Math.round(diff)}m ago`;
+        if (diff < 1440) return `${Math.round(diff/60)}h ago`;
+        return `${Math.round(diff/1440)}d ago`;
+      }
 
       return (
         <div className="anim">
-          <div style={{ display:"flex", gap:9, marginBottom:14 }}>
-            {ranked.slice(0,3).map((p,i) => (
-              <div key={p.id} style={{ flex:1, background:C.card, border:`1px solid ${i===0?"#FFD70030":C.border}`, borderTop:i===0?"2px solid #FFD700":"1px solid transparent", borderRadius:13, padding:"15px 10px", textAlign:"center" }}>
-                <div style={{ fontSize:20, marginBottom:3 }}>{ri(i)}</div>
-                <div className={rc(i)} style={{ fontFamily:"Russo One,sans-serif", fontSize:13, marginBottom:2 }}>{p.name}</div>
-                <div style={{ fontFamily:"Russo One,sans-serif", fontSize:23 }}>{p.pts}</div>
-                <div style={{ fontSize:9, color:C.dim, letterSpacing:".1em", textTransform:"uppercase" }}>pts</div>
+
+          {next && (
+            <div style={{ background:"linear-gradient(135deg,#0C0D12 0%,#100508 100%)", border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.red}`, borderRadius:16, padding:"16px 18px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+              <div>
+                <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, marginBottom:4 }}>Next Race</div>
+                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:17, letterSpacing:"-.01em", marginBottom:3 }}>{next.flag} {next.name}</div>
+                <div style={{ fontSize:12, color:"#8890A8" }}>
+                {next.hasSprint
+                  ? <>Sprint: {fmtShort(keyDate(next))} · GP: {fmtShort(next.date)}</>
+                  : fmtDate(next.date)
+                }
               </div>
-            ))}
-          </div>
+              </div>
+              <div style={{ background:"rgba(232,0,45,.1)", border:"1px solid rgba(232,0,45,.25)", borderRadius:10, padding:"10px 14px", textAlign:"center", flexShrink:0 }}>
+                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:24, color:C.red, lineHeight:1, marginBottom:2 }}>{Object.keys(next.picks||{}).length}/{data.players.length}</div>
+                <div style={{ fontSize:9, color:C.dim, letterSpacing:".15em", textTransform:"uppercase" }}>Picked</div>
+              </div>
+            </div>
+          )}
 
           <Card>
             <ST>Championship Standings</ST>
@@ -296,13 +406,13 @@
               const lpts = lp ? (lp.s||0)+(lp.r||0) : null;
               return (
                 <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:i<ranked.length-1?`1px solid ${C.border}`:"none" }}>
-                  <div className={rc(i)} style={{ width:26, fontSize:i<3?17:12, textAlign:"center", fontFamily:"Russo One,sans-serif" }}>{ri(i)}</div>
+                  <div className={rc(i)} style={{ width:28, fontSize:i<3?17:12, textAlign:"center", fontFamily:"Syne,sans-serif", fontWeight:800 }}>{ri(i)}</div>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontFamily:"Russo One,sans-serif", fontSize:16, letterSpacing:".04em" }}>{p.name}</div>
+                    <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:15, letterSpacing:"-.01em" }}>{p.name}</div>
                     {lpts !== null && <div style={{ fontSize:11, color:C.dim, marginTop:1 }}>Last race: +{lpts} pts</div>}
                   </div>
                   <div style={{ textAlign:"right" }}>
-                    <div style={{ fontFamily:"Russo One,sans-serif", fontSize:22 }}>{p.pts}</div>
+                    <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:22 }}>{p.pts}</div>
                     <div style={{ fontSize:9, color:C.dim, letterSpacing:".1em", textTransform:"uppercase" }}>pts</div>
                   </div>
                 </div>
@@ -313,15 +423,13 @@
           {next && (
             <Card>
               <ST color={C.teal}>{next.flag} {next.name} — Picks</ST>
-              <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>
-                Based on last race result · Worst picks first · No duplicate drivers
-              </div>
+              <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Based on last race result · Worst picks first</div>
               {order.map((p,i) => {
                 const hp     = !!next.picks?.[p.id];
                 const isNext = !hp && order.findIndex(x => !next.picks?.[x.id]) === i;
                 return (
                   <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
-                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"#00C85320":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Russo One,sans-serif", color:hp?C.green:isNext?"#fff":C.dim, flexShrink:0 }}>
+                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"rgba(0,200,83,.12)":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"rgba(0,200,83,.3)":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.dim, flexShrink:0 }}>
                       {hp ? "✓" : i+1}
                     </div>
                     <div style={{ flex:1 }}>
@@ -329,18 +437,45 @@
                       {hp && <div style={{ fontSize:12, color:C.green, fontWeight:600, marginTop:1 }}>{next.picks[p.id]}</div>}
                     </div>
                     {isNext && <span style={{ fontSize:12, color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>}
-                    {!hp && !isNext && <span style={{ fontSize:11, color:C.muted }}>Waiting...</span>}
+                    {!hp && !isNext && <span style={{ fontSize:11, color:C.dim }}>Waiting...</span>}
                     {hp && <Badge color={C.green}>✓ In</Badge>}
                   </div>
                 );
               })}
-              {next.hasSprint && <div style={{ marginTop:10, padding:"7px 10px", background:"#FF800010", border:"1px solid #FF800030", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
+              {next.hasSprint && <div style={{ marginTop:10, padding:"7px 10px", background:"rgba(255,128,0,.08)", border:"1px solid rgba(255,128,0,.2)", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
             </Card>
           )}
+
+          <NewsCard />
+
+          {latestMsg && (
+            <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden", marginBottom:14 }}>
+              <div style={{ padding:"15px 18px 13px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, display:"flex", alignItems:"center", gap:7 }}>
+                  <div style={{ width:3, height:11, background:C.teal, borderRadius:2 }}/>Latest Chat
+                </div>
+                <button className="bp" onClick={() => setTab("chat")} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", color:C.teal }}>View All →</button>
+              </div>
+              <div style={{ padding:"16px 18px" }}>
+                <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                  <div style={{ width:32, height:32, borderRadius:"50%", background:"#101118", border:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:13, color:PC[latestMsg.playerId]||C.dim, flexShrink:0 }}>
+                    {(latestMsg.playerName||"?").charAt(0)}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:5 }}>
+                      <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:13, color:PC[latestMsg.playerId]||C.dim }}>{latestMsg.playerName}</span>
+                      <span style={{ fontSize:10, color:C.dim }}>{msgTimeAgo(latestMsg.ts)}</span>
+                    </div>
+                    <div style={{ fontSize:14, color:"#F0F0F5", lineHeight:1.5, background:"#101118", borderRadius:"0 10px 10px 10px", padding:"9px 13px" }}>{latestMsg.text}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       );
     }
-
     // ── This Race ────────────────────────────────────────────────────────────────
 
     function RaceTab({ data, update, showToast }) {
@@ -356,16 +491,17 @@
         <div className="anim">
           <Card style={{ textAlign:"center", padding:"50px 20px" }}>
             <div style={{ fontSize:46, marginBottom:12 }}>🏁</div>
-            <div style={{ fontFamily:"Russo One,sans-serif", fontSize:18, marginBottom:8 }}>No Upcoming Race</div>
+            <div style={{ fontFamily:"Syne,sans-serif", fontSize:18, marginBottom:8 }}>No Upcoming Race</div>
             <div style={{ fontSize:13, color:C.dim }}>Admin needs to open picks for the next race.</div>
           </Card>
         </div>
       );
 
-      const days        = daysUntil(next.date);
-      const hours       = hoursUntil(next.date);
+      const deadline    = keyDate(next);
+      const days        = daysUntil(deadline);
+      const hours       = hoursUntil(deadline);
       const locked      = hours <= 0 || next.status === "locked";
-      const freeForAll  = hours > 0 && hours <= 12 && next.status !== "locked";
+      const freeForAll  = hours > 0 && hours <= 24 && next.status !== "locked";
       const picks       = next.picks || {};
       const order       = pickOrder(data.players, data.races);
       const taken       = Object.values(picks);
@@ -400,14 +536,16 @@
         <div className="anim">
           <div style={{ background:"linear-gradient(135deg,#0F1115 0%,#180808 100%)", border:`1px solid ${C.border}`, borderTop:`3px solid ${C.red}`, borderRadius:16, padding:20, marginBottom:14 }}>
             <div style={{ fontSize:40, marginBottom:5 }}>{next.flag}</div>
-            <div style={{ fontFamily:"Russo One,sans-serif", fontSize:20, textTransform:"uppercase", letterSpacing:".03em", marginBottom:4 }}>{next.name}</div>
+            <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, textTransform:"uppercase", letterSpacing:".03em", marginBottom:4 }}>{next.name}</div>
             <div style={{ fontSize:12, color:C.dim, marginBottom:12 }}>{next.location} · {fmtDate(next.date)}</div>
             <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
               {next.hasSprint && <Badge color={C.orange}>Sprint Weekend</Badge>}
               {locked ? <Badge color={C.red}>🔒 Picks Locked</Badge>
-                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — under 12hrs!</Badge>
-                : days === 0 ? <Badge color={C.red}>Locks Today!</Badge>
-                : <Badge color={C.green}>🟢 Open · {days}d to deadline</Badge>}
+                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — {next.hasSprint ? "24hrs to sprint!" : "under 24hrs!"}</Badge>
+                : days <= 0 ? <Badge color={C.red}>Locks Today!</Badge>
+                : next.hasSprint
+                  ? <Badge color={C.green}>🟢 Open · Locks {days}d before sprint</Badge>
+                  : <Badge color={C.green}>🟢 Open · {days}d to deadline</Badge>}
             </div>
           </div>
 
@@ -418,7 +556,7 @@
               const isNext = !hp && order.findIndex(x => !picks[x.id]) === i;
               return (
                 <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
-                  <div style={{ width:27, height:27, borderRadius:"50%", flexShrink:0, background:hp?"#00C85318":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, fontFamily:"Russo One,sans-serif", color:hp?C.green:isNext?"#fff":C.muted }}>
+                  <div style={{ width:27, height:27, borderRadius:"50%", flexShrink:0, background:hp?"#00C85318":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.muted }}>
                     {hp ? "✓" : i+1}
                   </div>
                   <div style={{ flex:1, fontSize:14, fontWeight:600 }}>{p.name}</div>
@@ -476,15 +614,15 @@
           {confirming && (
             <Card style={{ borderColor:"#FFD70040", background:"#0d0c00", textAlign:"center" }}>
               <div style={{ fontSize:36, marginBottom:12 }}>🏎</div>
-              <div style={{ fontFamily:"Russo One,sans-serif", fontSize:11, letterSpacing:".2em", textTransform:"uppercase", color:C.dim, marginBottom:16 }}>Confirm Your Pick</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontSize:11, letterSpacing:".2em", textTransform:"uppercase", color:C.dim, marginBottom:16 }}>Confirm Your Pick</div>
               <div style={{ marginBottom:8 }}>
                 <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>You are</div>
-                <div style={{ fontFamily:"Russo One,sans-serif", fontSize:22, color:C.gold }}>{data.players.find(p => p.id === who)?.name}</div>
+                <div style={{ fontFamily:"Syne,sans-serif", fontSize:22, color:C.gold }}>{data.players.find(p => p.id === who)?.name}</div>
               </div>
               <div style={{ fontSize:20, color:C.muted, marginBottom:8 }}>→</div>
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>Picking driver</div>
-                <div style={{ fontFamily:"Russo One,sans-serif", fontSize:22, color:"#fff" }}>{driver}</div>
+                <div style={{ fontFamily:"Syne,sans-serif", fontSize:22, color:"#fff" }}>{driver}</div>
               </div>
               <div style={{ fontSize:11, color:C.dim, marginBottom:16 }}>for the {next.name}</div>
               <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
@@ -503,7 +641,7 @@
           {done && (
             <Card style={{ borderColor:"#00C85340", background:"#001a0e", textAlign:"center" }}>
               <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
-              <div style={{ fontFamily:"Russo One,sans-serif", fontSize:18, color:C.green, marginBottom:6 }}>Pick Locked!</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontSize:18, color:C.green, marginBottom:6 }}>Pick Locked!</div>
               <div style={{ fontSize:13, color:C.dim }}>Good luck, {myName}!</div>
             </Card>
           )}
@@ -521,9 +659,9 @@
       function StatusBadge({ race }) {
         if (race.status === "picks_open") return <Badge color={C.green}>🟢 Picks Open</Badge>;
         if (race.status === "locked")     return <Badge color={C.red}>🔒 Locked</Badge>;
-        const d = daysUntil(race.date);
-        if (d <= 14) return <Badge color={C.orange}>{d}d away</Badge>;
-        return <span style={{ fontSize:11, color:C.dim }}>{fmtShort(race.date)}</span>;
+        const d = daysUntil(race.hasSprint ? keyDate(race) : race.date);
+        if (d <= 14) return <Badge color={race.hasSprint ? C.orange : C.orange}>{d}d {race.hasSprint ? "to sprint" : "away"}</Badge>;
+        return <span style={{ fontSize:11, color:C.dim }}>{fmtShort(race.hasSprint ? keyDate(race) : race.date)}</span>;
       }
 
       return (
@@ -556,12 +694,12 @@
                   <div style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", cursor:ranked?"pointer":"default" }} onClick={() => ranked && setOpenId(isOpen ? null : r.id)}>
                     <div style={{ fontSize:22, flexShrink:0 }}>{r.flag}</div>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontFamily:"Russo One,sans-serif", fontSize:14, textTransform:"uppercase", letterSpacing:".03em" }}>{r.name}</div>
+                      <div style={{ fontFamily:"Syne,sans-serif", fontSize:14, textTransform:"uppercase", letterSpacing:".03em" }}>{r.name}</div>
                       <div style={{ fontSize:11, color:C.dim }}>{fmtShort(r.date)}</div>
                     </div>
                     {winner && <div style={{ textAlign:"right", marginRight:6 }}>
                       <div style={{ fontSize:10, color:C.dim }}>Winner</div>
-                      <div style={{ fontFamily:"Russo One,sans-serif", fontSize:12, color:C.gold }}>{winner.name}</div>
+                      <div style={{ fontFamily:"Syne,sans-serif", fontSize:12, color:C.gold }}>{winner.name}</div>
                     </div>}
                     {r.noLeague && <span style={{ fontSize:11, color:C.muted }}>Pre-league</span>}
                     {ranked && <div style={{ color:C.dim, fontSize:12 }}>{isOpen ? "▲" : "▼"}</div>}
@@ -579,7 +717,7 @@
                             {r.hasSprint && <div>Sprint +{p.s}</div>}
                             <div>Race +{p.r}</div>
                           </div>
-                          <div style={{ fontFamily:"Russo One,sans-serif", fontSize:19, minWidth:34, textAlign:"right" }}>{p.total}</div>
+                          <div style={{ fontFamily:"Syne,sans-serif", fontSize:19, minWidth:34, textAlign:"right" }}>{p.total}</div>
                         </div>
                       ))}
                     </div>
@@ -610,7 +748,7 @@
           <Card style={{ maxWidth:340, margin:"40px auto" }}>
             <div style={{ textAlign:"center", marginBottom:20 }}>
               <div style={{ fontSize:32, marginBottom:6 }}>⚙️</div>
-              <div style={{ fontFamily:"Russo One,sans-serif", fontSize:17, marginBottom:3 }}>Admin Panel</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontSize:17, marginBottom:3 }}>Admin Panel</div>
               <div style={{ fontSize:12, color:C.dim }}>Commissioner access only</div>
             </div>
             <Lbl>PIN</Lbl>
@@ -713,7 +851,7 @@
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
                       {Array(8).fill(0).map((_,i) => (
                         <div key={i} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                          <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Russo One,sans-serif", flexShrink:0 }}>{i+1}.</div>
+                          <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Syne,sans-serif", flexShrink:0 }}>{i+1}.</div>
                           <Sel value={sprintOrd[i]} onChange={e => { const o=[...sprintOrd]; o[i]=e.target.value; setSprintOrd(o); }}>
                             <option value="">—</option>
                             {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -728,7 +866,7 @@
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
                     {Array(10).fill(0).map((_,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Russo One,sans-serif", flexShrink:0 }}>{i+1}.</div>
+                        <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Syne,sans-serif", flexShrink:0 }}>{i+1}.</div>
                         <Sel value={raceOrd[i]} onChange={e => { const o=[...raceOrd]; o[i]=e.target.value; setRaceOrd(o); }}>
                           <option value="">—</option>
                           {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -969,7 +1107,7 @@
                 return (
                   <div key={m.id} style={{ display:"flex", flexDirection:"column", gap:3 }}>
                     <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
-                      <span style={{ fontFamily:"Russo One,sans-serif", fontSize:12, color }}>{m.playerName}</span>
+                      <span style={{ fontFamily:"Syne,sans-serif", fontSize:12, color }}>{m.playerName}</span>
                       <span style={{ fontSize:10, color:C.muted }}>{fmtTs(m.ts)}</span>
                     </div>
                     <div style={{ fontSize:14, color:"#ddd", lineHeight:1.5, background:"#0A0C10", borderRadius:"0 10px 10px 10px", padding:"8px 12px", maxWidth:"90%", wordBreak:"break-word" }}>
@@ -1007,17 +1145,19 @@
     // ── Root ──────────────────────────────────────────────────────────────────────
 
     function App() {
-      const [data,   setData]   = useState(null);
-      const [tab,    setTab]    = useState("standings");
-      const [loaded, setLoaded] = useState(false);
-      const [toast,  setToast]  = useState("");
+      const [data,      setData]      = useState(null);
+      const [tab,       setTab]       = useState("standings");
+      const [loaded,    setLoaded]    = useState(false);
+      const [toast,     setToast]     = useState("");
+      const [latestMsg, setLatestMsg] = useState(null);
       const toastTimer = useRef(null);
 
       useEffect(() => {
         emailjs.init(EMAILJS_PUBLIC_KEY);
         loadData().then(d => { setData(d); setLoaded(true); });
         const unsub = subscribeData(d => setData(d));
-        return () => unsub();
+        const unsubChat = subscribeChat(msgs => setLatestMsg(msgs.length ? msgs[msgs.length-1] : null));
+        return () => { unsub(); unsubChat(); };
       }, []);
 
       const update = useCallback(async (newData) => {
@@ -1033,7 +1173,7 @@
 
       if (!loaded) return (
         <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div style={{ fontFamily:"Russo One,sans-serif", fontSize:24, color:C.red, letterSpacing:".2em" }}>LOADING...</div>
+          <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:24, color:C.red, letterSpacing:".2em" }}>LOADING...</div>
         </div>
       );
 
@@ -1047,28 +1187,22 @@
             </div>
           )}
           <div style={{ minHeight:"100vh", background:C.bg, color:"#fff" }}>
-            <div style={{ background:"#0A0C10", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
-              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <div style={{ padding:"13px 0" }}>
-                  <div style={{ fontFamily:"Russo One,sans-serif", fontSize:19, letterSpacing:".08em", display:"flex", alignItems:"center", gap:7 }}>
-                    <span style={{ color:C.red }}>F1</span>
-                    <span>FANTASY</span>
-                    <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.muted, fontWeight:400 }}>2026</span>
-                  </div>
+            <div style={{ background:"rgba(8,9,13,.95)", backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
+              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", height:56 }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:9 }}>
+                  <span style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:21, color:C.red, letterSpacing:"-.02em" }}>F1</span>
+                  <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:17, letterSpacing:"-.01em" }}>FANTASY</span>
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.dim, fontWeight:400, letterSpacing:".12em", textTransform:"uppercase" }}>2026</span>
                 </div>
-                <select
-                  value={tab}
-                  onChange={e => setTab(e.target.value)}
-                  style={{ background:"#1a1d22", border:`1px solid ${C.border}`, borderRadius:8, color:"#fff", padding:"7px 32px 7px 12px", fontFamily:"DM Sans,sans-serif", fontSize:12, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23E10600' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 10px) center" }}
-                >
-                  {TABS.map(([id,icon,lbl]) => (
-                    <option key={id} value={id}>{icon} {lbl}</option>
+                <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+                  {TABS.map(([id,icon]) => (
+                    <button key={id} className={`nav-tab${tab===id?" active":""}`} onClick={() => setTab(id)}>{icon}</button>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
             <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
-              {tab==="standings" && <StandingsTab data={data} />}
+              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={setTab} />}
               {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} />}
               {tab==="calendar"  && <CalendarTab  data={data} />}
               {tab==="chat"      && <ChatTab      players={data.players} />}
