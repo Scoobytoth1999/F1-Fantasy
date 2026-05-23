@@ -310,8 +310,8 @@
 
       useEffect(() => {
         // rss2json converts RSS to JSON with CORS support
-        const feed = encodeURIComponent("https://feeds.bbci.co.uk/sport/formula1/rss.xml");
-        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${feed}&api_key=public&count=8`)
+        const feed = encodeURIComponent("https://www.autosport.com/rss/f1/news/");
+        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${feed}&count=8`)
           .then(r => r.json())
           .then(d => {
             const items = (d.items || []).map(i => ({
@@ -319,7 +319,7 @@
               description: i.description?.replace(/<[^>]+>/g, "").slice(0, 150),
               url: i.link,
               publishedAt: i.pubDate,
-              source: { name: "BBC Sport F1" }
+              source: { name: "Autosport" }
             }));
             setStories(items);
             setLoading(false);
