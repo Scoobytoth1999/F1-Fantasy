@@ -305,67 +305,28 @@
     // ── Standings ────────────────────────────────────────────────────────────────
 
     function NewsCard() {
-      const [stories, setStories] = useState([]);
-      const [loading, setLoading] = useState(true);
-
-      useEffect(() => {
-        // Fetch F1 news via public Motorsport.com widget API
-        fetch("https://widgets.motorsport.com/api/v0/article/list/?lang=en&edition_id=13&limit=8&format=json&nocache=" + Date.now())
-          .then(r => r.json())
-          .then(d => {
-            const items = (d.objects || []).map(i => ({
-              title: i.title,
-              description: (i.excerpt || "").replace(/<[^>]+>/g,"").trim().slice(0,150),
-              url: "https://www.motorsport.com" + (i.url || ""),
-              publishedAt: i.published,
-              source: { name: "Motorsport.com" }
-            }));
-            setStories(items);
-            setLoading(false);
-          })
-          .catch(() => setLoading(false));
-      }, []);
-      function timeAgo(dateStr) {
-        const diff = (Date.now() - new Date(dateStr)) / 60000;
-        if (diff < 60) return `${Math.round(diff)}m ago`;
-        if (diff < 1440) return `${Math.round(diff/60)}h ago`;
-        return `${Math.round(diff/1440)}d ago`;
-      }
-
       return (
         <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden", marginBottom:14 }}>
           <div style={{ padding:"15px 18px 13px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, display:"flex", alignItems:"center", gap:7 }}>
               <div style={{ width:3, height:11, background:C.red, borderRadius:2 }}/>F1 News
             </div>
-            <span style={{ background:"rgba(232,0,45,.12)", color:C.red, border:"1px solid rgba(232,0,45,.25)", borderRadius:6, padding:"2px 8px", fontSize:9, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase" }}>Live</span>
+            <span style={{ background:"rgba(255,128,0,.12)", color:C.orange, border:"1px solid rgba(255,128,0,.25)", borderRadius:6, padding:"2px 8px", fontSize:9, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase" }}>Coming Soon</span>
           </div>
-          <div className="news-scroll" style={{ maxHeight:320, overflowY:"auto" }}>
-            {loading && (
-              <div style={{ padding:"30px 20px", textAlign:"center", color:C.dim, fontSize:12 }}>
-                <div style={{ width:18, height:18, border:`2px solid ${C.border}`, borderTopColor:C.red, borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 10px" }}/>
-                Loading news...
-              </div>
-            )}
-            {!loading && stories.length === 0 && (
-              <div style={{ padding:"30px 20px", textAlign:"center", color:C.dim, fontSize:12 }}>No stories found</div>
-            )}
-            {stories.map((s,i) => (
-              <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
-                style={{ display:"block", padding:"14px 18px", borderBottom:i<stories.length-1?`1px solid ${C.border}`:"none", textDecoration:"none" }}>
-                <div style={{ fontSize:9, fontWeight:600, letterSpacing:".16em", textTransform:"uppercase", color:C.red, marginBottom:4 }}>{s.source?.name || "F1 News"}</div>
-                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:14, lineHeight:1.35, color:"#F0F0F5", marginBottom:5, letterSpacing:"-.01em" }}>{s.title}</div>
-                <div style={{ fontSize:12, color:"#8890A8", lineHeight:1.6, marginBottom:4 }}>{(s.description||"").slice(0,120)}{(s.description||"").length>120?"...":""}</div>
-                <div style={{ fontSize:10, color:C.dim }}>{timeAgo(s.publishedAt)}</div>
-              </a>
-            ))}
+          <div style={{ padding:"32px 20px", textAlign:"center" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>🏎</div>
+            <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:15, marginBottom:8 }}>Live F1 News Coming Soon</div>
+            <div style={{ fontSize:13, color:C.dim, lineHeight:1.7, marginBottom:16 }}>Real-time headlines will appear here once enabled.</div>
+            <a href="https://www.bbc.com/sport/formula1" target="_blank" rel="noopener noreferrer"
+              style={{ display:"inline-block", background:"rgba(232,0,45,.1)", border:"1px solid rgba(232,0,45,.25)", color:C.red, borderRadius:9, padding:"9px 16px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase", textDecoration:"none" }}>
+              Read F1 News on BBC Sport →
+            </a>
           </div>
-          <div style={{ padding:"9px 18px", textAlign:"center", fontSize:10, color:C.dim, letterSpacing:".1em", textTransform:"uppercase", borderTop:`1px solid ${C.border}` }}>↕ Scroll for more</div>
         </div>
       );
     }
 
-    function StandingsTab({ data, latestMsg, setTab }) {
+        function StandingsTab({ data, latestMsg, setTab }) {
       const ranked = standings(data.players, data.races);
       const order  = pickOrder(data.players, data.races);
       const next   = data.races.find(r => r.status !== "completed");
