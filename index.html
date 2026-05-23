@@ -313,9 +313,9 @@
       const [loading, setLoading] = useState(true);
 
       useEffect(() => {
-        fetch(`https://gnews.io/api/v4/search?q=Formula+1+F1&lang=en&max=8&sortby=publishedAt&apikey=${GNEWS_API_KEY}`)
+        fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://gnews.io/api/v4/search?q=Formula+1+F1&lang=en&max=8&sortby=publishedAt&apikey=${GNEWS_API_KEY}`)}`)
           .then(r => r.json())
-          .then(d => { setStories(d.articles || []); setLoading(false); })
+          .then(d => { const parsed = JSON.parse(d.contents); setStories(parsed.articles || []); setLoading(false); })
           .catch(() => setLoading(false));
       }, []);
 
