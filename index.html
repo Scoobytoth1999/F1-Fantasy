@@ -732,7 +732,7 @@
       const allRaces   = [...completed, ...upcoming];
       const selRace    = data.races.find(r => r.id === raceId);
 
-      function saveResults() {
+      async function saveResults() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
         const pts = {};
         data.players.forEach(p => {
@@ -745,14 +745,44 @@
           pts[p.id] = {s, r};
         });
         const isAlreadyCompleted = selRace.status === "completed";
-        update({ ...data, races: data.races.map(r => r.id===raceId ? {
-          ...r,
-          status: "completed",
-          points: pts,
-          // preserve pickOrder snapshot if editing completed race
-          ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
-        } : r) });
-        showToast("Points saved ✅");
+
+        // Update the completed race
+        let newRaces = data.races.map(r => r.id===raceId ? {
+          ...r, status:"completed", points:pts,
+          ...(isAlreadyCompleted ? { _pointsEdited:true } : {})
+        } : r);
+
+        // If this is a fresh result (not an edit), auto-open the next race and send reminder
+        if (!isAlreadyCompleted) {
+          const nextRace = newRaces.find(r => r.status === "upcoming");
+          if (nextRace) {
+            newRaces = newRaces.map(r => r.id === nextRace.id ? { ...r, status:"picks_open" } : r);
+            const newData = { ...data, races: newRaces };
+            await update(newData);
+            showToast("Points saved! Opening picks for " + nextRace.name + "...");
+
+            // Send reminder to first player in pick order
+            const order = pickOrder(data.players, newRaces);
+            const firstPicker = order[0];
+            if (firstPicker?.email) {
+              const sent = await sendPickEmail({
+                toPlayer: firstPicker,
+                nextRace,
+                takenDrivers: [],
+                allPlayers: data.players,
+                allRaces: newRaces,
+              });
+              if (sent) showToast("📧 Pick reminder sent to " + firstPicker.name + "!");
+            }
+          } else {
+            await update({ ...data, races: newRaces });
+            showToast("Points saved ✅");
+          }
+        } else {
+          await update({ ...data, races: newRaces });
+          showToast("Points updated ✅");
+        }
+
         setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
       }
 
