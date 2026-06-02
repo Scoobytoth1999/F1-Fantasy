@@ -253,7 +253,18 @@
     function hoursUntil(d) {
       return (new Date(d) - new Date()) / 3600000;
     }
-    // For sprint weekends, the key date is Saturday (GP date - 1 day)
+    // Qualifying starts Saturday 3pm for normal, Friday 3pm for sprint weekends
+    function qualifyingTime(race) {
+      const d = new Date(race.date);
+      d.setDate(d.getDate() - (race.hasSprint ? 2 : 1));
+      d.setHours(15, 0, 0, 0);
+      return d;
+    }
+    // Free-for-all opens 24hrs before qualifying
+    function freeForAllTime(race) {
+      return new Date(qualifyingTime(race).getTime() - 24 * 3600000);
+    }
+    // Keep keyDate for calendar display purposes
     function keyDate(race) {
       if (!race.hasSprint) return race.date;
       const d = new Date(race.date);
@@ -464,11 +475,13 @@
         </div>
       );
 
-      const deadline    = keyDate(next);
-      const days        = daysUntil(deadline);
-      const hours       = hoursUntil(deadline);
-      const locked      = hours <= 0 || next.status === "locked";
-      const freeForAll  = hours > 0 && hours <= 24 && next.status !== "locked";
+      const qualTime    = qualifyingTime(next);
+      const ffaTime     = freeForAllTime(next);
+      const now         = new Date();
+      const locked      = now >= qualTime || next.status === "locked";
+      const freeForAll  = !locked && now >= ffaTime;
+      const hours       = hoursUntil(qualTime);
+      const days        = daysUntil(freeForAllTime(next));
       const picks       = next.picks || {};
       const order       = pickOrder(data.players, data.races);
       const taken       = Object.values(picks);
@@ -508,11 +521,11 @@
             <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
               {next.hasSprint && <Badge color={C.orange}>Sprint Weekend</Badge>}
               {locked ? <Badge color={C.red}>🔒 Picks Locked</Badge>
-                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — {next.hasSprint ? "24hrs to sprint!" : "under 24hrs!"}</Badge>
-                : days <= 0 ? <Badge color={C.red}>Locks Today!</Badge>
-                : next.hasSprint
-                  ? <Badge color={C.green}>🟢 Open · Locks {days}d before sprint</Badge>
-                  : <Badge color={C.green}>🟢 Open · {days}d to deadline</Badge>}
+                : freeForAll
+                  ? <Badge color={C.orange}>⚡ Free-for-all — locks at qualifying!</Badge>
+                  : days <= 1
+                    ? <Badge color={C.orange}>⚠️ Free-for-all opens tomorrow!</Badge>
+                    : <Badge color={C.green}>🟢 Open · Free-for-all in {days}d</Badge>}
             </div>
           </div>
 
@@ -1151,7 +1164,41 @@
 
       useEffect(() => {
         emailjs.init(EMAILJS_PUBLIC_KEY);
-        loadData().then(d => { setData(d); setLoaded(true); });
+        loadData().then(async d => {
+          setData(d);
+          setLoaded(true);
+          // Auto fire free-for-all email blast if window just opened
+          const openRace = d.races.find(r => r.status === "picks_open");
+          if (openRace && !openRace.freeForAllEmailSent) {
+            const now = new Date();
+            const ffaTime = freeForAllTime(openRace);
+            const qualTime = qualifyingTime(openRace);
+            if (now >= ffaTime && now < qualTime) {
+              const unpicked = d.players.filter(p => !openRace.picks?.[p.id] && p.email);
+              if (unpicked.length) {
+                // Mark as sent first to prevent double-sending
+                const updatedRaces = d.races.map(r => r.id === openRace.id ? { ...r, freeForAllEmailSent: true } : r);
+                const newData = { ...d, races: updatedRaces };
+                await saveData(newData);
+                setData(newData);
+                // Send blast to all unpicked players
+                for (const p of unpicked) {
+                  try {
+                    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                      to_email: p.email,
+                      to_name: p.name,
+                      race_name: openRace.name,
+                      race_date: fmtShort(openRace.date),
+                      pick_pos: "open to everyone",
+                      taken: Object.values(openRace.picks||{}).join(", ") || "None yet",
+                      app_url: window.location.href,
+                    }, EMAILJS_PUBLIC_KEY);
+                  } catch(e) { console.error("FFA email error:", e); }
+                }
+              }
+            }
+          }
+        });
         const unsub = subscribeData(d => setData(d));
         const unsubChat = subscribeChat(msgs => setLatestMsg(msgs.length ? msgs[msgs.length-1] : null));
         return () => { unsub(); unsubChat(); };
