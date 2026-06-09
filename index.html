@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>F1 Fantasy 2026</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎</text></svg>" />
 
   <!-- ═══════════════════════════════════════════════════════════
        STEP 1 OF 3 — PASTE YOUR FIREBASE CONFIG HERE
@@ -242,37 +243,10 @@
       return p ? (p.s||0)+(p.r||0) : 0;
     }
     function pickOrder(players, races) {
-      // Sort order: worst last race first, then worst overall, then work back race by race
-      const completedRaces = [...races]
-        .filter(r => r.status === "completed" && !r.noLeague)
-        .reverse(); // most recent first
-
+      // Reverse order of last race results — worst last race picks first
       return [...players]
-        .map(p => ({
-          ...p,
-          _totalPts: total(p, races),
-          _history: completedRaces.map(r => {
-            const pts = r.points?.[p.id];
-            return pts ? (pts.s||0)+(pts.r||0) : 0;
-          }),
-        }))
-        .sort((a, b) => {
-          // 1. Last race points (worst first)
-          const aLast = a._history[0] ?? 0;
-          const bLast = b._history[0] ?? 0;
-          if (aLast !== bLast) return aLast - bLast;
-
-          // 2. Overall standings (worst first)
-          if (a._totalPts !== b._totalPts) return a._totalPts - b._totalPts;
-
-          // 3. Keep going back race by race until tie breaks
-          for (let i = 1; i < Math.max(a._history.length, b._history.length); i++) {
-            const ai = a._history[i] ?? 0;
-            const bi = b._history[i] ?? 0;
-            if (ai !== bi) return ai - bi;
-          }
-          return 0; // truly equal
-        });
+        .map(p => ({...p, lastPts: lastRacePts(p, races)}))
+        .sort((a,b) => a.lastPts - b.lastPts);
     }
     function daysUntil(d) {
       return Math.ceil((new Date(d) - new Date()) / 86400000);
