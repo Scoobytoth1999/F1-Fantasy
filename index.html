@@ -44,7 +44,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
@@ -242,10 +242,37 @@
       return p ? (p.s||0)+(p.r||0) : 0;
     }
     function pickOrder(players, races) {
-      // Reverse order of last race results — worst last race picks first
+      // Sort order: worst last race first, then worst overall, then work back race by race
+      const completedRaces = [...races]
+        .filter(r => r.status === "completed" && !r.noLeague)
+        .reverse(); // most recent first
+
       return [...players]
-        .map(p => ({...p, lastPts: lastRacePts(p, races)}))
-        .sort((a,b) => a.lastPts - b.lastPts);
+        .map(p => ({
+          ...p,
+          _totalPts: total(p, races),
+          _history: completedRaces.map(r => {
+            const pts = r.points?.[p.id];
+            return pts ? (pts.s||0)+(pts.r||0) : 0;
+          }),
+        }))
+        .sort((a, b) => {
+          // 1. Last race points (worst first)
+          const aLast = a._history[0] ?? 0;
+          const bLast = b._history[0] ?? 0;
+          if (aLast !== bLast) return aLast - bLast;
+
+          // 2. Overall standings (worst first)
+          if (a._totalPts !== b._totalPts) return a._totalPts - b._totalPts;
+
+          // 3. Keep going back race by race until tie breaks
+          for (let i = 1; i < Math.max(a._history.length, b._history.length); i++) {
+            const ai = a._history[i] ?? 0;
+            const bi = b._history[i] ?? 0;
+            if (ai !== bi) return ai - bi;
+          }
+          return 0; // truly equal
+        });
     }
     function daysUntil(d) {
       return Math.ceil((new Date(d) - new Date()) / 86400000);
