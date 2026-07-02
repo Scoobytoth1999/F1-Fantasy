@@ -280,11 +280,11 @@
     function hoursUntil(d) {
       return (new Date(d) - new Date()) / 3600000;
     }
-    // For sprint weekends, the key date is Saturday (GP date - 1 day)
+    // keyDate: Friday for sprint weekends (qualifying day), Saturday for normal
     function keyDate(race) {
       if (!race.hasSprint) return race.date;
       const d = new Date(race.date);
-      d.setDate(d.getDate() - 1);
+      d.setDate(d.getDate() - 2); // Sprint qualifying is Friday (GP Sunday - 2 days)
       return d.toISOString().slice(0, 10);
     }
     function fmtDate(d) {
