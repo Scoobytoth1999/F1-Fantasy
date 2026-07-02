@@ -358,6 +358,10 @@
       const order  = pickOrder(data.players, data.races);
       const next   = data.races.find(r => r.status !== "completed");
       const last   = [...data.races].reverse().find(r => r.status === "completed" && !r.noLeague);
+      const nextFFA = next && (() => {
+        const h = hoursUntil(keyDate(next));
+        return h > 0 && h <= 24 && next.status !== "locked";
+      })();
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
       const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E8002D", mcmichael:"#FFD700", hattner:"#B370FF", yogesh:"#00C853" };
@@ -417,7 +421,10 @@
           {next && (
             <Card>
               <ST color={C.teal}>{next.flag} {next.name} — Picks</ST>
-              <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Based on last race result · Worst picks first</div>
+              {nextFFA
+                ? <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(255,128,0,.1)", border:"1px solid rgba(255,128,0,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.orange }}>⚡ Free-for-all open — anyone can pick now!</div>
+                : <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Based on last race result · Worst picks first</div>
+              }
               {order.map((p,i) => {
                 const hp     = !!next.picks?.[p.id];
                 const isNext = !hp && order.findIndex(x => !next.picks?.[x.id]) === i;
@@ -535,7 +542,7 @@
             <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
               {next.hasSprint && <Badge color={C.orange}>Sprint Weekend</Badge>}
               {locked ? <Badge color={C.red}>🔒 Picks Locked</Badge>
-                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — {next.hasSprint ? "24hrs to sprint!" : "under 24hrs!"}</Badge>
+                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — locks at qualifying!</Badge>
                 : days <= 0 ? <Badge color={C.red}>Locks Today!</Badge>
                 : next.hasSprint
                   ? <Badge color={C.green}>🟢 Open · Locks {days}d before sprint</Badge>
@@ -583,7 +590,7 @@
                 {freeForAll && (
                   <div style={{ padding:"10px 12px", background:"#FF800015", border:"1px solid #FF800040", borderRadius:9, marginBottom:8 }}>
                     <div style={{ fontSize:10, color:C.orange, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>⚡ Free-for-all — picks open to everyone</div>
-                    <div style={{ fontSize:12, color:C.dim }}>Less than 12 hours to race — anyone can pick now</div>
+                    <div style={{ fontSize:12, color:C.dim }}>Less than 24 hours to qualifying — anyone can pick now</div>
                   </div>
                 )}
                 <Sel value={who} onChange={e => setWho(e.target.value)}>
