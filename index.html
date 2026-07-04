@@ -459,7 +459,29 @@
                   </div>
                 );
               })}
-              {next.hasSprint && <div style={{ marginTop:10, padding:"7px 10px", background:"rgba(255,128,0,.08)", border:"1px solid rgba(255,128,0,.2)", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
+              {next.hasSprint && !next._sprintSaved && <div style={{ marginTop:10, padding:"7px 10px", background:"rgba(255,128,0,.08)", border:"1px solid rgba(255,128,0,.2)", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
+              {next.hasSprint && next._sprintSaved && (
+                <div style={{ marginTop:12, padding:"12px 14px", background:"rgba(255,128,0,.08)", border:"1px solid rgba(255,128,0,.3)", borderRadius:10 }}>
+                  <div style={{ fontSize:11, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:C.orange, marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+                    🏁 Sprint Results In — GP Pending
+                  </div>
+                  {[...data.players]
+                    .map(p => ({ ...p, sPts: next.points?.[p.id]?.s || 0, driver: next.picks?.[p.id] }))
+                    .filter(p => p.driver)
+                    .sort((a,b) => b.sPts - a.sPts)
+                    .map((p,i,arr) => (
+                      <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:i<arr.length-1?`1px solid rgba(255,128,0,.12)`:"none" }}>
+                        <div style={{ flex:1, fontSize:13 }}>
+                          <span style={{ fontWeight:600 }}>{p.name}</span>
+                          <span style={{ color:C.dim, marginLeft:6, fontSize:11 }}>{p.driver}</span>
+                        </div>
+                        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:14, color:p.sPts>0?C.orange:C.dim }}>+{p.sPts}</div>
+                      </div>
+                    ))
+                  }
+                  <div style={{ fontSize:10, color:C.dim, marginTop:8, fontStyle:"italic" }}>Sprint points are live in the standings. Full GP points added once the race finishes.</div>
+                </div>
+              )}
             </Card>
           )}
 
