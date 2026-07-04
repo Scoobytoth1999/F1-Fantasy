@@ -227,9 +227,17 @@
 
     function total(player, races) {
       return races.reduce((sum, r) => {
-        if (r.status !== "completed" || r.noLeague) return sum;
-        const p = r.points?.[player.id];
-        return sum + (p ? (p.s||0)+(p.r||0) : 0);
+        if (r.noLeague) return sum;
+        // Count completed races fully, plus sprint-only points from in-progress sprint weekends
+        if (r.status === "completed") {
+          const p = r.points?.[player.id];
+          return sum + (p ? (p.s||0)+(p.r||0) : 0);
+        }
+        if (r._sprintSaved) {
+          const p = r.points?.[player.id];
+          return sum + (p ? (p.s||0) : 0); // sprint points only until GP finalizes
+        }
+        return sum;
       }, 0);
     }
     function standings(players, races) {
@@ -501,8 +509,8 @@
       const deadline    = keyDate(next);
       const days        = daysUntil(deadline);
       const hours       = hoursUntil(deadline);
-      const locked      = hours <= 0 || next.status === "locked";
-      const freeForAll  = hours > 0 && hours <= 24 && next.status !== "locked";
+      const locked      = next.status === "locked";
+      const freeForAll  = hours <= 24 && next.status !== "locked";
       const picks       = next.picks || {};
       const order       = pickOrder(data.players, data.races);
       const taken       = Object.values(picks);
@@ -766,6 +774,25 @@
       const allRaces   = [...completed, ...upcoming];
       const selRace    = data.races.find(r => r.id === raceId);
 
+      // Save sprint results only — stores sprint points, does NOT finalize the race
+      function saveSprint() {
+        if (!raceId || !selRace) { showToast("Select a race first"); return; }
+        const pts = { ...(selRace.points || {}) };
+        data.players.forEach(p => {
+          const drv = selRace.picks?.[p.id];
+          const existing = pts[p.id] || { s:0, r:0 };
+          let s = 0;
+          if (drv) { const pos = sprintOrd.indexOf(drv); if (pos>=0 && pos<8) s = SPR_PTS[pos]; }
+          pts[p.id] = { s, r: existing.r || 0 };
+        });
+        // status stays as-is (picks_open/locked) — NOT completed. Points show but race not finalized.
+        update({ ...data, races: data.races.map(r => r.id===raceId ? {
+          ...r, points: pts, _sprintSaved: true
+        } : r) });
+        showToast("Sprint results saved! Points showing — enter GP results to finalize 🏁");
+      }
+
+      // Save GP results and finalize the race — calculates full points, marks complete
       function saveResults() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
         const pts = {};
@@ -783,10 +810,10 @@
           ...r,
           status: "completed",
           points: pts,
-          // preserve pickOrder snapshot if editing completed race
+          _sprintSaved: false,
           ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
         } : r) });
-        showToast("Points saved ✅");
+        showToast("Race finalized & points saved ✅");
         setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
       }
 
@@ -829,7 +856,21 @@
               <ST>{selRace?.status === "completed" ? "Edit Race Results" : "Enter Race Results"}</ST>
               <div style={{ marginBottom:12 }}>
                 <Lbl>Select Race</Lbl>
-                <Sel value={raceId} onChange={e => { setRaceId(e.target.value); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill("")); }}>
+                <Sel value={raceId} onChange={e => {
+                  setRaceId(e.target.value);
+                  const r = data.races.find(x => x.id === e.target.value);
+                  // Reconstruct sprint order from saved points if available
+                  const sO = Array(8).fill("");
+                  const rO = Array(10).fill("");
+                  if (r?.points && r.picks) {
+                    Object.entries(r.picks).forEach(([pid, drv]) => {
+                      const pt = r.points[pid];
+                      if (pt?.s > 0) { const idx = SPR_PTS.indexOf(pt.s); if (idx >= 0 && !sO[idx]) sO[idx] = drv; }
+                      if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r); if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
+                    });
+                  }
+                  setSprintOrd(sO); setRaceOrd(rO);
+                }}>
                   <option value="">Choose a race...</option>
                   {completed.length > 0 && <option disabled>── Completed ──</option>}
                   {completed.map(r => <option key={r.id} value={r.id}>{r.flag} {r.name} ✓</option>)}
@@ -876,7 +917,19 @@
                     ))}
                   </div>
                 </div>
-                <Btn onClick={saveResults}>{selRace?.status === "completed" ? "Update Points ✅" : "Calculate & Save Points ✅"}</Btn>
+                {selRace.hasSprint && selRace.status !== "completed" ? (
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <Btn onClick={saveSprint} style={{ background:C.orange, color:"#000" }}>Save Sprint Only 🏁</Btn>
+                    <Btn onClick={saveResults}>Save GP & Finalize ✅</Btn>
+                  </div>
+                ) : (
+                  <Btn onClick={saveResults}>{selRace?.status === "completed" ? "Update Points ✅" : "Calculate & Save Points ✅"}</Btn>
+                )}
+                {selRace.hasSprint && selRace._sprintSaved && selRace.status !== "completed" && (
+                  <div style={{ marginTop:10, padding:"8px 11px", background:"rgba(0,200,83,.1)", border:"1px solid rgba(0,200,83,.25)", borderRadius:8, fontSize:11, color:C.green }}>
+                    ✓ Sprint points saved and showing in standings. Enter the GP finishing order and hit "Save GP & Finalize" to complete the race.
+                  </div>
+                )}
               </>}
             </Card>
           )}
