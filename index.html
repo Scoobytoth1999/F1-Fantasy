@@ -243,6 +243,14 @@
     function standings(players, races) {
       return [...players].map(p => ({...p, pts: total(p, races)})).sort((a,b) => b.pts - a.pts);
     }
+    // Total from COMPLETED races only — used for pick order so in-progress sprint points don't affect it
+    function completedTotal(player, races) {
+      return races.reduce((sum, r) => {
+        if (r.status !== "completed" || r.noLeague) return sum;
+        const p = r.points?.[player.id];
+        return sum + (p ? (p.s||0)+(p.r||0) : 0);
+      }, 0);
+    }
     function lastRacePts(player, races) {
       const last = [...races].reverse().find(r => r.status === "completed" && !r.noLeague);
       if (!last) return 0;
@@ -258,7 +266,7 @@
       return [...players]
         .map(p => ({
           ...p,
-          _totalPts: total(p, races),
+          _totalPts: completedTotal(p, races),
           _history: completedRaces.map(r => {
             const pts = r.points?.[p.id];
             return pts ? (pts.s||0)+(pts.r||0) : 0;
@@ -817,6 +825,22 @@
         setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
       }
 
+      // Clear a race's results/points but KEEP everyone's picks
+      function clearResults() {
+        if (!raceId || !selRace) { showToast("Select a race first"); return; }
+        const msg = `Clear all results for ${selRace.name}?\n\nThis wipes the points and moves it back to open picking, but KEEPS everyone's driver picks. Standings and pick order will recalculate.`;
+        if (!window.confirm(msg)) return;
+        update({ ...data, races: data.races.map(r => r.id===raceId ? {
+          ...r,
+          points: {},
+          status: "picks_open",
+          _sprintSaved: false,
+          _pointsEdited: false,
+        } : r) });
+        showToast("Results cleared — picks kept ✅");
+        setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
+      }
+
       function saveEmails() {
         const players = data.players.map(p => ({...p, email: emails[p.id]||""}));
         update({ ...data, players });
@@ -928,6 +952,14 @@
                 {selRace.hasSprint && selRace._sprintSaved && selRace.status !== "completed" && (
                   <div style={{ marginTop:10, padding:"8px 11px", background:"rgba(0,200,83,.1)", border:"1px solid rgba(0,200,83,.25)", borderRadius:8, fontSize:11, color:C.green }}>
                     ✓ Sprint points saved and showing in standings. Enter the GP finishing order and hit "Save GP & Finalize" to complete the race.
+                  </div>
+                )}
+                {(selRace.status === "completed" || selRace._sprintSaved || Object.keys(selRace.points||{}).length > 0) && (
+                  <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
+                    <Btn onClick={clearResults} style={{ background:"transparent", color:C.red, border:`1px solid ${C.red}40` }}>🗑 Clear Results (keep picks)</Btn>
+                    <div style={{ fontSize:11, color:C.dim, marginTop:8, lineHeight:1.6 }}>
+                      Wipes this race's points and reopens picking. Everyone's driver picks are kept. Use this if you entered results by mistake.
+                    </div>
                   </div>
                 )}
               </>}
