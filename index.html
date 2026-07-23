@@ -303,6 +303,15 @@
       d.setDate(d.getDate() - 2); // Sprint qualifying is Friday (GP Sunday - 2 days)
       return d.toISOString().slice(0, 10);
     }
+    // Free-for-all opens 10am the day BEFORE qualifying.
+    // Normal weekend: qualifying Sat -> opens Friday 10am (GP date - 2)
+    // Sprint weekend: sprint quali Fri -> opens Thursday 10am (GP date - 3)
+    function freeForAllTime(race) {
+      const d = new Date(race.date + "T00:00:00");
+      d.setDate(d.getDate() - (race.hasSprint ? 3 : 2));
+      d.setHours(10, 0, 0, 0);
+      return d;
+    }
     function fmtDate(d) {
       return new Date(d).toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" });
     }
@@ -374,10 +383,7 @@
       const order  = pickOrder(data.players, data.races);
       const next   = data.races.find(r => r.status !== "completed");
       const last   = [...data.races].reverse().find(r => r.status === "completed" && !r.noLeague);
-      const nextFFA = next && (() => {
-        const h = hoursUntil(keyDate(next));
-        return h > 0 && h <= 24 && next.status !== "locked";
-      })();
+      const nextFFA = next && new Date() >= freeForAllTime(next) && next.status !== "locked";
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
       const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E8002D", mcmichael:"#FFD700", hattner:"#B370FF", yogesh:"#00C853" };
@@ -439,7 +445,10 @@
               <ST color={C.teal}>{next.flag} {next.name} — Picks</ST>
               {nextFFA
                 ? <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(255,128,0,.1)", border:"1px solid rgba(255,128,0,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.orange }}>⚡ Free-for-all open — anyone can pick now!</div>
-                : <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Based on last race result · Worst picks first</div>
+                : <div style={{ fontSize:11, color:C.dim, marginBottom:12, lineHeight:1.6 }}>
+                    Based on last race result · Worst picks first<br/>
+                    Free-for-all picking opens Friday 10am (Thursday 10am on sprint weekends)
+                  </div>
               }
               {order.map((p,i) => {
                 const hp     = !!next.picks?.[p.id];
@@ -540,7 +549,7 @@
       const days        = daysUntil(deadline);
       const hours       = hoursUntil(deadline);
       const locked      = next.status === "locked";
-      const freeForAll  = hours <= 24 && next.status !== "locked";
+      const freeForAll  = new Date() >= freeForAllTime(next) && next.status !== "locked";
       const picks       = next.picks || {};
       const order       = pickOrder(data.players, data.races);
       const taken       = Object.values(picks);
