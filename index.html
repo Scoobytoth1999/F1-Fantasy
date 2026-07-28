@@ -137,6 +137,7 @@
       { id:"ita-2026", name:"Italian Grand Prix",             location:"Monza",       flag:"🇮🇹", date:"2026-09-06", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
       { id:"mad-2026", name:"Madrid Grand Prix",              location:"Madrid",      flag:"🇪🇸", date:"2026-09-13", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
       { id:"aze-2026", name:"Azerbaijan Grand Prix",          location:"Baku",        flag:"🇦🇿", date:"2026-09-26", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
+      { id:"bhr-2026", name:"Bahrain Grand Prix (Malaysia)",  location:"Sepang",      flag:"🇲🇾", date:"2026-10-04", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
       { id:"sin-2026", name:"Singapore Grand Prix",           location:"Singapore",   flag:"🇸🇬", date:"2026-10-11", hasSprint:true,  status:"upcoming",  picks:{}, points:{} },
       { id:"usa-2026", name:"United States Grand Prix",       location:"Austin",      flag:"🇺🇸", date:"2026-10-25", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
       { id:"mex-2026", name:"Mexico City Grand Prix",         location:"Mexico City", flag:"🇲🇽", date:"2026-11-01", hasSprint:false, status:"upcoming",  picks:{}, points:{} },
@@ -230,12 +231,14 @@
         if (r.noLeague) return sum;
         // Count completed races fully, plus sprint-only points from in-progress sprint weekends
         if (r.status === "completed") {
-          const p = r.points?.[player.id];
-          return sum + (p ? (p.s||0)+(p.r||0) : 0);
+          const p  = r.points?.[player.id];
+          const p2 = r.points2?.[player.id];
+          return sum + (p ? (p.s||0)+(p.r||0) : 0) + (p2 ? (p2.s||0)+(p2.r||0) : 0);
         }
         if (r._sprintSaved) {
-          const p = r.points?.[player.id];
-          return sum + (p ? (p.s||0) : 0); // sprint points only until GP finalizes
+          const p  = r.points?.[player.id];
+          const p2 = r.points2?.[player.id];
+          return sum + (p ? (p.s||0) : 0) + (p2 ? (p2.s||0) : 0); // sprint points only until GP finalizes
         }
         return sum;
       }, 0);
@@ -247,15 +250,60 @@
     function completedTotal(player, races) {
       return races.reduce((sum, r) => {
         if (r.status !== "completed" || r.noLeague) return sum;
-        const p = r.points?.[player.id];
-        return sum + (p ? (p.s||0)+(p.r||0) : 0);
+        const p  = r.points?.[player.id];
+        const p2 = r.points2?.[player.id];
+        return sum + (p ? (p.s||0)+(p.r||0) : 0) + (p2 ? (p2.s||0)+(p2.r||0) : 0);
       }, 0);
     }
     function lastRacePts(player, races) {
       const last = [...races].reverse().find(r => r.status === "completed" && !r.noLeague);
       if (!last) return 0;
-      const p = last.points?.[player.id];
-      return p ? (p.s||0)+(p.r||0) : 0;
+      const p  = last.points?.[player.id];
+      const p2 = last.points2?.[player.id];
+      return (p ? (p.s||0)+(p.r||0) : 0) + (p2 ? (p2.s||0)+(p2.r||0) : 0);
+    }
+
+    // ── Second Driver Pick helpers ──────────────────────────────────────────────
+
+    // Race day (the day picks lock): GP date, or the day before for sprint weekends
+    // (sprint race runs Saturday, one driver covers both sessions, so lock before it).
+    function raceLockDay(race) {
+      const d = new Date(race.date + "T00:00:00");
+      if (race.hasSprint) d.setDate(d.getDate() - 1);
+      return d;
+    }
+    // All picks (1st and 2nd) lock at 12:01 AM on race day.
+    function raceLockTime(race) {
+      const d = raceLockDay(race);
+      d.setHours(0, 1, 0, 0);
+      return d;
+    }
+    // Second-pick window opens whichever comes first: the scheduled free-for-all time,
+    // or the moment all 6 first picks are locked in (race._allPickedAt).
+    function secondPickStart(race) {
+      const scheduled = freeForAllTime(race);
+      if (race._allPickedAt) {
+        const early = new Date(race._allPickedAt);
+        return early < scheduled ? early : scheduled;
+      }
+      return scheduled;
+    }
+    // 6 hours after the second-pick window opens, everyone (not just bottom 3) can pick.
+    function secondPickEveryoneTime(race) {
+      const d = new Date(secondPickStart(race));
+      d.setHours(d.getHours() + 6);
+      return d;
+    }
+    // Bottom 3 in current season standings get first access to the 2nd pick.
+    // If there's a tie right at the 3rd/4th boundary, both tied players move into
+    // the "everyone" group instead of either getting the early slot.
+    function secondPickGroups(players, races) {
+      const asc = [...players].map(p => ({ ...p, pts: total(p, races) })).sort((a,b) => a.pts - b.pts);
+      const boundaryPts = asc[3] ? asc[3].pts : null;
+      const bottomIds = new Set(
+        asc.slice(0, 3).filter(p => boundaryPts === null || p.pts !== boundaryPts).map(p => p.id)
+      );
+      return { bottomIds };
     }
     function pickOrder(players, races) {
       // Sort order: worst last race first, then worst overall, then work back race by race
@@ -460,7 +508,12 @@
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:14, fontWeight:500 }}>{p.name}</div>
-                      {hp && <div style={{ fontSize:12, color:C.green, fontWeight:600, marginTop:1 }}>{next.picks[p.id]}</div>}
+                      {hp && (
+                        <div style={{ display:"flex", gap:10, marginTop:2 }}>
+                          <div style={{ fontSize:12, color:C.green, fontWeight:600 }}>{next.picks[p.id]}</div>
+                          {next.picks2?.[p.id] && <div style={{ fontSize:12, color:C.gold, fontWeight:600 }}>+ {next.picks2[p.id]}</div>}
+                        </div>
+                      )}
                     </div>
                     {isNext && <span style={{ fontSize:12, color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>}
                     {!hp && !isNext && <span style={{ fontSize:11, color:C.dim }}>Waiting...</span>}
@@ -535,6 +588,13 @@
       const [confirming, setConfirming] = useState(false);
       const [err, setErr]           = useState("");
 
+      const [who2, setWho2]         = useState("");
+      const [driver2, setDriver2]   = useState("");
+      const [done2, setDone2]       = useState(false);
+      const [sending2, setSending2] = useState(false);
+      const [confirming2, setConfirming2] = useState(false);
+      const [err2, setErr2]         = useState("");
+
       if (!next) return (
         <div className="anim">
           <Card style={{ textAlign:"center", padding:"50px 20px" }}>
@@ -557,6 +617,21 @@
       const allPicked   = data.players.every(p => picks[p.id]);
       const myName      = data.players.find(p => p.id === who)?.name;
 
+      // ── Second driver pick state ──────────────────────────────────────────────
+      const picks2        = next.picks2 || {};
+      const lockTime       = raceLockTime(next);
+      const picksLocked    = new Date() >= lockTime;
+      const windowStart    = secondPickStart(next);
+      const windowOpen     = new Date() >= windowStart && !picksLocked;
+      const everyoneTime   = secondPickEveryoneTime(next);
+      const everyoneIn     = new Date() >= everyoneTime;
+      const { bottomIds }  = secondPickGroups(data.players, data.races);
+      const taken2All      = [...taken, ...Object.values(picks2)];
+      const available2     = DRIVERS.filter(d => !taken2All.includes(d));
+      const eligibleFor2   = data.players.filter(p => !picks2[p.id] && (everyoneIn || bottomIds.has(p.id)));
+      const allPicked2     = data.players.every(p => picks2[p.id]);
+      const myName2        = data.players.find(p => p.id === who2)?.name;
+
       async function submit() {
         if (!who)       { setErr("Please select your name."); return; }
         if (!driver)    { setErr("Please select a driver."); return; }
@@ -567,7 +642,11 @@
         }
         setSending(true);
         const newPicks = { ...picks, [who]: driver };
-        const races    = data.races.map(r => r.id === next.id ? { ...r, picks: newPicks } : r);
+        const allDone  = data.players.every(p => newPicks[p.id]);
+        const races    = data.races.map(r => r.id === next.id ? {
+          ...r, picks: newPicks,
+          ...(allDone && !r._allPickedAt ? { _allPickedAt: new Date().toISOString() } : {}),
+        } : r);
         const newData  = { ...data, races };
         await update(newData);
         const nextPicker = order.find(p => !newPicks[p.id]);
@@ -578,6 +657,20 @@
         setSending(false);
         setDone(true);
         setErr("");
+      }
+
+      async function submit2() {
+        if (!who2)        { setErr2("Please select your name."); return; }
+        if (!driver2)     { setErr2("Please select a driver."); return; }
+        if (picks2[who2]) { setErr2("You already locked in your 2nd driver!"); return; }
+        if (!everyoneIn && !bottomIds.has(who2)) { setErr2("2nd driver picks are open to the bottom 3 in standings first."); return; }
+        setSending2(true);
+        const newPicks2 = { ...picks2, [who2]: driver2 };
+        const races     = data.races.map(r => r.id === next.id ? { ...r, picks2: newPicks2 } : r);
+        await update({ ...data, races });
+        setSending2(false);
+        setDone2(true);
+        setErr2("");
       }
 
       return (
@@ -693,6 +786,86 @@
               <div style={{ fontSize:13, color:C.dim }}>Good luck, {myName}!</div>
             </Card>
           )}
+
+          {/* ── Second Driver Pick ────────────────────────────────────────────── */}
+          {windowOpen && (
+            <Card style={{ borderTop:`3px solid ${C.gold}` }}>
+              <ST color={C.gold}>🏎 2nd Driver Pick</ST>
+              {!everyoneIn ? (
+                <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(255,215,0,.1)", border:"1px solid rgba(255,215,0,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.gold }}>
+                  ⏳ Bottom 3 in standings get first access. Everyone else joins at {everyoneTime.toLocaleString("en-US",{ weekday:"short", hour:"numeric", minute:"2-digit" })}.
+                </div>
+              ) : (
+                <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(0,200,83,.1)", border:"1px solid rgba(0,200,83,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.green }}>
+                  ⚡ Open to everyone now — first come, first served.
+                </div>
+              )}
+              <div style={{ marginBottom:10 }}>
+                {data.players.map(p => {
+                  const hp = !!picks2[p.id];
+                  const canGo = !hp && (everyoneIn || bottomIds.has(p.id));
+                  return (
+                    <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
+                      <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{p.name}{bottomIds.has(p.id) && !hp && <span style={{ color:C.gold, fontSize:10, marginLeft:6 }}>(early access)</span>}</div>
+                      {hp ? <Badge color={C.green}>✓ {picks2[p.id]}</Badge> : canGo ? <span style={{ fontSize:11, color:C.gold }}>Eligible now</span> : <span style={{ fontSize:11, color:C.dim }}>Waiting...</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {allPicked2 && <div style={{ marginBottom:10, padding:10, background:"#00C85310", border:`1px solid #00C85330`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All 2nd drivers are in! 🎉</div>}
+
+              {!allPicked2 && !done2 && !confirming2 && (
+                <>
+                  {err2 && <div style={{ color:C.red, fontSize:12, marginBottom:10 }}>{err2}</div>}
+                  <div style={{ marginBottom:11 }}>
+                    <Lbl>Who are you?</Lbl>
+                    <Sel value={who2} onChange={e => setWho2(e.target.value)}>
+                      <option value="">Select your name...</option>
+                      {eligibleFor2.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </Sel>
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <Lbl>Your 2nd Driver</Lbl>
+                    <Sel value={driver2} onChange={e => setDriver2(e.target.value)}>
+                      <option value="">Select a driver...</option>
+                      {available2.map(d => <option key={d} value={d}>{d}</option>)}
+                    </Sel>
+                  </div>
+                  <Btn onClick={() => { if (!who2) { setErr2("Please select your name."); return; } if (!driver2) { setErr2("Please select a driver."); return; } setErr2(""); setConfirming2(true); }} disabled={sending2} style={{ background:C.gold, color:"#000" }}>Review My 2nd Pick →</Btn>
+                </>
+              )}
+
+              {confirming2 && (
+                <div style={{ textAlign:"center", padding:"10px 0" }}>
+                  <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>You are</div>
+                  <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, color:C.gold, marginBottom:10 }}>{data.players.find(p => p.id === who2)?.name}</div>
+                  <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>Picking 2nd driver</div>
+                  <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, marginBottom:16 }}>{driver2}</div>
+                  <div style={{ fontSize:11, color:C.dim, marginBottom:14 }}>This is final — no changes after submitting.</div>
+                  <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+                    <Btn variant="ghost" onClick={() => setConfirming2(false)}>← Go Back</Btn>
+                    <Btn onClick={submit2} disabled={sending2} style={{ background:C.gold, color:"#000" }}>{sending2 ? "Saving..." : "✅ Confirm 2nd Pick"}</Btn>
+                  </div>
+                </div>
+              )}
+
+              {done2 && (
+                <div style={{ textAlign:"center", padding:"10px 0" }}>
+                  <div style={{ fontSize:32, marginBottom:6 }}>✅</div>
+                  <div style={{ fontFamily:"Syne,sans-serif", fontSize:16, color:C.green }}>2nd Driver Locked!</div>
+                  <div style={{ fontSize:12, color:C.dim, marginTop:4 }}>Good luck, {myName2}!</div>
+                </div>
+              )}
+            </Card>
+          )}
+          {!windowOpen && !picksLocked && (
+            <Card style={{ background:"#0d0d0d" }}>
+              <ST color={C.dim}>🏎 2nd Driver Pick</ST>
+              <div style={{ fontSize:12, color:C.dim, lineHeight:1.7 }}>
+                Opens {windowStart.toLocaleString("en-US",{ weekday:"long", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })} — or sooner, the moment all six 1st picks are locked in. Bottom 3 in standings get 6 hours' early access.
+              </div>
+            </Card>
+          )}
         </div>
       );
     }
@@ -735,7 +908,14 @@
             <ST>Completed Races</ST>
             {completed.map((r,i) => {
               const isOpen  = openId === r.id;
-              const ranked  = r.noLeague ? null : [...data.players].map(p => { const pts=r.points?.[p.id]||{s:0,r:0}; return {...p, s:pts.s||0, r:pts.r||0, total:(pts.s||0)+(pts.r||0), driver:r.picks?.[p.id]}; }).sort((a,b) => b.total-a.total);
+              const ranked  = r.noLeague ? null : [...data.players].map(p => {
+                const pts  = r.points?.[p.id]||{s:0,r:0};
+                const pts2 = r.points2?.[p.id]||{s:0,r:0};
+                const driver2 = r.picks2?.[p.id];
+                return {...p, s:pts.s||0, r:pts.r||0, s2:pts2.s||0, r2:pts2.r||0,
+                  total:(pts.s||0)+(pts.r||0)+(driver2?(pts2.s||0)+(pts2.r||0):0),
+                  driver:r.picks?.[p.id], driver2};
+              }).sort((a,b) => b.total-a.total);
               const winner  = ranked?.[0];
               return (
                 <div key={r.id} style={{ borderBottom:i<completed.length-1?`1px solid ${C.border}`:"none" }}>
@@ -759,11 +939,11 @@
                           <div style={{ fontSize:j<3?15:11, width:20, textAlign:"center" }} className={j===0?"rg":j===1?"rs":j===2?"rb":""}>{j===0?"👑":j===1?"🥈":j===2?"🥉":`#${j+1}`}</div>
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:13, fontWeight:600 }}>{p.name}</div>
-                            <div style={{ fontSize:11, color:C.dim }}>{p.driver || "—"}</div>
+                            <div style={{ fontSize:11, color:C.dim }}>{p.driver || "—"}{p.driver2 && <span style={{ color:C.gold }}> + {p.driver2}</span>}</div>
                           </div>
                           <div style={{ textAlign:"right", fontSize:11, color:C.dim }}>
-                            {r.hasSprint && <div>Sprint +{p.s}</div>}
-                            <div>Race +{p.r}</div>
+                            {r.hasSprint && <div>Sprint +{p.s}{p.driver2?`/+${p.s2}`:""}</div>}
+                            <div>Race +{p.r}{p.driver2?`/+${p.r2}`:""}</div>
                           </div>
                           <div style={{ fontFamily:"Syne,sans-serif", fontSize:19, minWidth:34, textAlign:"right" }}>{p.total}</div>
                         </div>
@@ -816,17 +996,22 @@
       // Save sprint results only — stores sprint points, does NOT finalize the race
       function saveSprint() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
-        const pts = { ...(selRace.points || {}) };
+        const pts  = { ...(selRace.points || {}) };
+        const pts2 = { ...(selRace.points2 || {}) };
         data.players.forEach(p => {
-          const drv = selRace.picks?.[p.id];
-          const existing = pts[p.id] || { s:0, r:0 };
-          let s = 0;
-          if (drv) { const pos = sprintOrd.indexOf(drv); if (pos>=0 && pos<8) s = SPR_PTS[pos]; }
-          pts[p.id] = { s, r: existing.r || 0 };
+          const drv  = selRace.picks?.[p.id];
+          const drv2 = selRace.picks2?.[p.id];
+          const existing  = pts[p.id]  || { s:0, r:0 };
+          const existing2 = pts2[p.id] || { s:0, r:0 };
+          let s = 0, s2 = 0;
+          if (drv)  { const pos  = sprintOrd.indexOf(drv);  if (pos>=0  && pos<8)  s  = SPR_PTS[pos]; }
+          if (drv2) { const pos2 = sprintOrd.indexOf(drv2); if (pos2>=0 && pos2<8) s2 = SPR_PTS[pos2]; }
+          pts[p.id]  = { s, r: existing.r || 0 };
+          pts2[p.id] = { s: s2, r: existing2.r || 0 };
         });
         // status stays as-is (picks_open/locked) — NOT completed. Points show but race not finalized.
         update({ ...data, races: data.races.map(r => r.id===raceId ? {
-          ...r, points: pts, _sprintSaved: true
+          ...r, points: pts, points2: pts2, _sprintSaved: true
         } : r) });
         showToast("Sprint results saved! Points showing — enter GP results to finalize 🏁");
       }
@@ -834,21 +1019,32 @@
       // Save GP results and finalize the race — calculates full points, marks complete
       function saveResults() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
-        const pts = {};
+        const pts  = {};
+        const pts2 = {};
         data.players.forEach(p => {
-          const drv = selRace.picks?.[p.id];
-          if (!drv) { pts[p.id]={s:0,r:0}; return; }
-          let s = 0;
-          if (selRace.hasSprint) { const pos=sprintOrd.indexOf(drv); if(pos>=0&&pos<8) s=SPR_PTS[pos]; }
-          const rpos = raceOrd.indexOf(drv);
-          const r = (rpos>=0&&rpos<10) ? GP_PTS[rpos] : 0;
-          pts[p.id] = {s, r};
+          const drv  = selRace.picks?.[p.id];
+          const drv2 = selRace.picks2?.[p.id];
+          if (!drv) { pts[p.id]={s:0,r:0}; } else {
+            let s = 0;
+            if (selRace.hasSprint) { const pos=sprintOrd.indexOf(drv); if(pos>=0&&pos<8) s=SPR_PTS[pos]; }
+            const rpos = raceOrd.indexOf(drv);
+            const r = (rpos>=0&&rpos<10) ? GP_PTS[rpos] : 0;
+            pts[p.id] = {s, r};
+          }
+          if (!drv2) { pts2[p.id]={s:0,r:0}; } else {
+            let s2 = 0;
+            if (selRace.hasSprint) { const pos2=sprintOrd.indexOf(drv2); if(pos2>=0&&pos2<8) s2=SPR_PTS[pos2]; }
+            const rpos2 = raceOrd.indexOf(drv2);
+            const r2 = (rpos2>=0&&rpos2<10) ? GP_PTS[rpos2] : 0;
+            pts2[p.id] = {s:s2, r:r2};
+          }
         });
         const isAlreadyCompleted = selRace.status === "completed";
         update({ ...data, races: data.races.map(r => r.id===raceId ? {
           ...r,
           status: "completed",
           points: pts,
+          points2: pts2,
           _sprintSaved: false,
           ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
         } : r) });
@@ -864,6 +1060,7 @@
         update({ ...data, races: data.races.map(r => r.id===raceId ? {
           ...r,
           points: {},
+          points2: {},
           status: "picks_open",
           _sprintSaved: false,
           _pointsEdited: false,
@@ -1054,44 +1251,61 @@
               {upcoming.length === 0 && (
                 <div style={{ fontSize:13, color:C.dim, textAlign:"center", padding:"20px 0" }}>No upcoming races with picks to edit.</div>
               )}
-              {upcoming.filter(r => Object.keys(r.picks||{}).length > 0).map(race => (
+              {upcoming.filter(r => Object.keys(r.picks||{}).length > 0 || Object.keys(r.picks2||{}).length > 0).map(race => (
                 <div key={race.id} style={{ marginBottom:20 }}>
                   <div style={{ fontSize:12, fontWeight:600, color:C.teal, letterSpacing:".1em", textTransform:"uppercase", marginBottom:10 }}>{race.flag} {race.name}</div>
                   {data.players.map(p => {
-                    const currentPick = race.picks?.[p.id] || "";
+                    const currentPick  = race.picks?.[p.id] || "";
+                    const currentPick2 = race.picks2?.[p.id] || "";
                     return (
-                      <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 0", borderBottom:`1px solid ${C.border}` }}>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:13, fontWeight:600 }}>{p.name}</div>
-                          <div style={{ fontSize:11, color:currentPick ? C.green : C.muted, marginTop:1 }}>{currentPick || "No pick yet"}</div>
+                      <div key={p.id} style={{ padding:"8px 0", borderBottom:`1px solid ${C.border}` }}>
+                        <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>{p.name}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:6 }}>
+                          <div style={{ fontSize:10, color:C.dim, width:60, flexShrink:0 }}>1st driver</div>
+                          <Sel
+                            value={currentPick}
+                            onChange={e => {
+                              const newPick = e.target.value;
+                              const newPicks = { ...race.picks };
+                              if (newPick === "") delete newPicks[p.id]; else newPicks[p.id] = newPick;
+                              const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks } : r);
+                              update({ ...data, races });
+                              showToast(newPick ? `${p.name} → ${newPick} ✅` : `${p.name}'s 1st pick cleared ✅`);
+                            }}
+                            style={{ width:"auto", minWidth:150, flex:1 }}
+                          >
+                            <option value="">— Clear pick —</option>
+                            {DRIVERS.filter(d => d === currentPick || !Object.values(race.picks||{}).includes(d)).map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </Sel>
                         </div>
-                        <Sel
-                          value={currentPick}
-                          onChange={e => {
-                            const newPick = e.target.value;
-                            const newPicks = { ...race.picks };
-                            if (newPick === "") {
-                              delete newPicks[p.id];
-                            } else {
-                              newPicks[p.id] = newPick;
-                            }
-                            const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks } : r);
-                            update({ ...data, races });
-                            showToast(newPick ? `${p.name} → ${newPick} ✅` : `${p.name}'s pick cleared ✅`);
-                          }}
-                          style={{ width:"auto", minWidth:160 }}
-                        >
-                          <option value="">— Clear pick —</option>
-                          {DRIVERS.filter(d => d === currentPick || !Object.values(race.picks||{}).includes(d)).map(d => (
-                            <option key={d} value={d}>{d}</option>
-                          ))}
-                        </Sel>
+                        <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                          <div style={{ fontSize:10, color:C.gold, width:60, flexShrink:0 }}>2nd driver</div>
+                          <Sel
+                            value={currentPick2}
+                            onChange={e => {
+                              const newPick = e.target.value;
+                              const newPicks2 = { ...race.picks2 };
+                              if (newPick === "") delete newPicks2[p.id]; else newPicks2[p.id] = newPick;
+                              const races = data.races.map(r => r.id === race.id ? { ...r, picks2: newPicks2 } : r);
+                              update({ ...data, races });
+                              showToast(newPick ? `${p.name} 2nd → ${newPick} ✅` : `${p.name}'s 2nd pick cleared ✅`);
+                            }}
+                            style={{ width:"auto", minWidth:150, flex:1 }}
+                          >
+                            <option value="">— Clear pick —</option>
+                            {DRIVERS.filter(d => d === currentPick2 || (!Object.values(race.picks||{}).includes(d) && !Object.values(race.picks2||{}).includes(d))).map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </Sel>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               ))}
-              {upcoming.length > 0 && upcoming.every(r => Object.keys(r.picks||{}).length === 0) && (
+              {upcoming.length > 0 && upcoming.every(r => Object.keys(r.picks||{}).length === 0 && Object.keys(r.picks2||{}).length === 0) && (
                 <div style={{ fontSize:13, color:C.dim, textAlign:"center", padding:"20px 0" }}>No picks have been made yet for upcoming races.</div>
               )}
             </Card>
@@ -1281,6 +1495,36 @@
         setData(newData);
         await saveData(newData);
       }, []);
+
+      // Semi-automatic 2nd-pick email: fires once, the next time anyone loads the
+      // site after the 2nd-pick window opens for the next race. Tracked via a
+      // Firestore flag (_secondPickEmailSent) so it never sends twice.
+      useEffect(() => {
+        if (!data) return;
+        const next = data.races.find(r => r.status !== "completed");
+        if (!next) return;
+        const opened = new Date() >= secondPickStart(next);
+        if (!opened || next._secondPickEmailSent) return;
+        (async () => {
+          const races = data.races.map(r => r.id === next.id ? { ...r, _secondPickEmailSent: true } : r);
+          await saveData({ ...data, races });
+          for (const p of data.players) {
+            if (!p.email) continue;
+            if (EMAILJS_PUBLIC_KEY === "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE") continue;
+            try {
+              await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                to_email: p.email,
+                to_name: p.name,
+                race_name: next.name,
+                race_date: fmtShort(next.date),
+                pick_pos: "2nd driver window open",
+                taken: Object.values(next.picks2||{}).join(", ") || "None yet",
+                app_url: window.location.href,
+              }, EMAILJS_PUBLIC_KEY);
+            } catch(e) { console.error("2nd-pick email error:", e); }
+          }
+        })();
+      }, [data]);
 
       function showToast(msg) {
         setToast(msg);
