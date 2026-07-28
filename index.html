@@ -50,54 +50,79 @@
 
   <style>
     :root {
-      --red:#E8002D; --red2:#FF1639; --gold:#FFD700; --silver:#C8C8C8; --bronze:#CD7F32;
-      --teal:#00D2BE; --orange:#FF8000; --green:#00C853;
-      --bg:#050507; --bg2:#08090D; --card:#0C0D12; --card2:#101118;
-      --border:#16181F; --border2:#1E2029; --dim:#5A5E70; --muted:#2E3040;
-      --text:#F0F0F5; --subtext:#8890A8;
+      /* ── Base light theme (constant across palettes) ── */
+      --bg:#F7F5F2; --bg2:#FFFFFF; --card:#FFFFFF; --card2:#FBFAF8;
+      --field:#F4F2EF; --surface2:#F0EDE8;
+      --border:#E4E0D9; --border2:#D6D1C8;
+      --text:#1A1A1A; --subtext:#55524D; --dim:#5F5B54; --muted:#8A857C;
+
+      /* ── Semantic colours (fixed, so status always reads the same) ── */
+      --green:#0F7B43; --gold:#8A6A00; --orange:#B24A00; --teal:#00706B; --danger:#C0182B;
+
+      /* ── Team palette (overwritten by the palette classes below) ── */
+      --accent:#df102e; --accent2:#7f7900;
+      --head1:#eb1131; --head2:#520611;
     }
+
+    /* Ferrari */
+    [data-team="ferrari"] {
+      --accent:#df102e; --accent2:#7f7900; --head1:#eb1131; --head2:#520611;
+    }
+    /* Mercedes — graphite/silver header, Petronas teal accent */
+    [data-team="mercedes"] {
+      --accent:#007f6b; --accent2:#4E5866; --head1:#6B7280; --head2:#22262B;
+    }
+    /* Red Bull */
+    [data-team="redbull"] {
+      --accent:#3e70bb; --accent2:#887500; --head1:#4175c4; --head2:#172945;
+    }
+    /* McLaren */
+    [data-team="mclaren"] {
+      --accent:#b25600; --accent2:#0b5ed7; --head1:#bc5b00; --head2:#422000;
+    }
+
     * { box-sizing:border-box; margin:0; padding:0; }
     body {
       background:var(--bg); color:var(--text);
       font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden;
+      transition:background .4s ease;
     }
-    body::before {
-      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
-      background-image:
-        repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(255,255,255,.012) 2px,rgba(255,255,255,.012) 4px),
-        repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(255,255,255,.008) 2px,rgba(255,255,255,.008) 4px);
-    }
+    /* Soft team-tinted wash at the top of the page — this is the rotating background */
     body::after {
-      content:''; position:fixed; top:-120px; left:-80px; width:500px; height:400px;
-      background:radial-gradient(ellipse at center,rgba(232,0,45,.16) 0%,transparent 70%);
-      pointer-events:none; z-index:0;
+      content:''; position:fixed; top:-160px; left:-100px; width:620px; height:480px;
+      background:radial-gradient(ellipse at center,
+        color-mix(in srgb, var(--head1) 22%, transparent) 0%, transparent 70%);
+      pointer-events:none; z-index:0; transition:background .4s ease;
     }
     #root { position:relative; z-index:1; }
     ::-webkit-scrollbar { width:4px; }
-    ::-webkit-scrollbar-track { background:var(--bg2); }
-    ::-webkit-scrollbar-thumb { background:var(--red); border-radius:2px; }
-    select option { background:#111; color:#fff; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:var(--accent); border-radius:2px; }
+    select option { background:#fff; color:var(--text); }
     @keyframes fadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
     @keyframes pulse  { 0%,100%{opacity:1;}50%{opacity:.4;} }
     @keyframes spin   { to{transform:rotate(360deg);} }
     .anim { animation:fadeUp .28s ease forwards; }
-    .rg { color:var(--gold); filter:drop-shadow(0 0 6px rgba(255,215,0,.4)); }
-    .rs { color:var(--silver); }
-    .rb { color:var(--bronze); }
+    .rg { color:#9A7B00; }
+    .rs { color:#6E7276; }
+    .rb { color:#8A5A2B; }
     .bp { transition:opacity .15s,transform .1s; cursor:pointer; }
     .bp:hover  { opacity:.85; transform:translateY(-1px); }
     .bp:active { transform:translateY(0); }
     .nav-tab {
       background:none; border:none; border-bottom:2px solid transparent;
-      cursor:pointer; padding:10px 13px; font-size:18px; color:var(--dim);
+      cursor:pointer; padding:10px 13px; font-size:18px; color:var(--muted);
       transition:all .18s; line-height:1; border-radius:8px 8px 0 0;
     }
-    .nav-tab:hover { color:var(--text); background:rgba(255,255,255,.04); }
-    .nav-tab.active { color:var(--text); border-bottom-color:var(--red); background:rgba(232,0,45,.06); }
-    input[type=date]::-webkit-calendar-picker-indicator { filter:invert(.5); }
+    .nav-tab:hover { color:var(--text); background:rgba(0,0,0,.04); }
+    .nav-tab.active {
+      color:var(--text); border-bottom-color:var(--accent);
+      background:color-mix(in srgb, var(--accent) 9%, transparent);
+    }
+    input[type=date]::-webkit-calendar-picker-indicator { filter:none; }
     input, select, button { outline:none; }
     .news-scroll::-webkit-scrollbar { width:3px; }
-    .news-scroll::-webkit-scrollbar-thumb { background:var(--red); border-radius:2px; }
+    .news-scroll::-webkit-scrollbar-thumb { background:var(--accent); border-radius:2px; }
   </style>
 </head>
 <body>
@@ -110,7 +135,43 @@
 
     const GP_PTS  = [25,18,15,12,10,8,6,4,2,1];
     const SPR_PTS = [8,7,6,5,4,3,2,1];
-    const C = { red:"#E8002D", gold:"#FFD700", green:"#00C853", orange:"#FF8000", teal:"#00D2BE", bg:"#050507", card:"#0C0D12", border:"#16181F", muted:"#2E3040", dim:"#5A5E70" };
+    // Colours resolve to CSS variables so the whole UI re-themes when the
+    // palette changes (see PALETTES / applyTeam below). Semantic colours
+    // (green/gold/orange/teal/danger) stay fixed so status always reads the same;
+    // only `red` — the brand accent — rotates with the team palette.
+    const C = {
+      red:    "var(--accent)",
+      accent2:"var(--accent2)",
+      gold:   "var(--gold)",
+      green:  "var(--green)",
+      orange: "var(--orange)",
+      teal:   "var(--teal)",
+      danger: "var(--danger)",
+      bg:     "var(--bg)",
+      card:   "var(--card)",
+      border: "var(--border)",
+      muted:  "var(--muted)",
+      dim:    "var(--dim)",
+      text:   "var(--text)",
+      field:  "var(--field)",
+      surface2:"var(--surface2)",
+    };
+
+    // Team palettes for the rotating background.
+    const PALETTES = [
+      { id:"ferrari",  name:"Ferrari"  },
+      { id:"mercedes", name:"Mercedes" },
+      { id:"redbull",  name:"Red Bull" },
+      { id:"mclaren",  name:"McLaren"  },
+    ];
+    // Pick a random palette, never the same one twice in a row.
+    function nextTeam(currentId) {
+      const pool = PALETTES.filter(p => p.id !== currentId);
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+    function applyTeam(id) {
+      document.documentElement.setAttribute("data-team", id);
+    }
 
     const DRIVERS = [
       "Max Verstappen","Lando Norris","Charles Leclerc","Oscar Piastri",
@@ -297,13 +358,23 @@
     // Bottom 3 in current season standings get first access to the 2nd pick.
     // If there's a tie right at the 3rd/4th boundary, both tied players move into
     // the "everyone" group instead of either getting the early slot.
+    //
+    // The stagger only kicks in from the THIRD race of the season onward. For the
+    // first two races everyone picks their 2nd driver at the same time, because
+    // standings are too bunched up early on (several players tied on zero would
+    // trip the boundary-tie rule and collapse the early group to nobody).
+    function staggerActive(races) {
+      const completedLeague = races.filter(r => r.status === "completed" && !r.noLeague).length;
+      return completedLeague >= 2;
+    }
     function secondPickGroups(players, races) {
+      if (!staggerActive(races)) return { bottomIds: new Set(), staggered: false };
       const asc = [...players].map(p => ({ ...p, pts: total(p, races) })).sort((a,b) => a.pts - b.pts);
       const boundaryPts = asc[3] ? asc[3].pts : null;
       const bottomIds = new Set(
         asc.slice(0, 3).filter(p => boundaryPts === null || p.pts !== boundaryPts).map(p => p.id)
       );
-      return { bottomIds };
+      return { bottomIds, staggered: true };
     }
     function pickOrder(players, races) {
       // Sort order: worst last race first, then worst overall, then work back race by race
@@ -384,22 +455,22 @@
       <div style={{ fontSize:10, fontWeight:600, letterSpacing:".18em", textTransform:"uppercase", color:C.dim, marginBottom:6, fontFamily:"DM Sans,sans-serif" }}>{children}</div>
     );
     const Badge = ({ children, color }) => (
-      <span style={{ background:`${color}18`, color, border:`1px solid ${color}35`, borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", fontFamily:"DM Sans,sans-serif", whiteSpace:"nowrap" }}>{children}</span>
+      <span style={{ background:`color-mix(in srgb, ${color} 12%, transparent)`, color, border:`1px solid color-mix(in srgb, ${color} 30%, transparent)`, borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", fontFamily:"DM Sans,sans-serif", whiteSpace:"nowrap" }}>{children}</span>
     );
     function Btn({ children, onClick, variant="primary", style={}, disabled=false }) {
       const b = { fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase", padding:"9px 15px", borderRadius:9, cursor:disabled?"not-allowed":"pointer", border:"none", opacity:disabled?.5:1, ...style };
       if (variant==="primary") return <button className="bp" style={{...b, background:C.red, color:"#fff"}} onClick={onClick} disabled={disabled}>{children}</button>;
       if (variant==="ghost")   return <button className="bp" style={{...b, background:"transparent", color:C.dim, border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
-      return <button className="bp" style={{...b, background:"#1a1d22", color:"#fff", border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
+      return <button className="bp" style={{...b, background:"var(--surface2)", color:"var(--text)", border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
     }
     const Sel = ({ value, onChange, children, style={} }) => (
-      <select value={value} onChange={onChange} style={{ background:"#0A0C10", border:`1px solid ${C.border}`, borderRadius:9, color:"#fff", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 12px) center", ...style }}>
+      <select value={value} onChange={onChange} style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 12px) center", ...style }}>
         {children}
       </select>
     );
     const Inp = ({ value, onChange, placeholder, type="text", style={}, onKeyDown }) => (
       <input type={type} value={value} onChange={onChange} placeholder={placeholder} onKeyDown={onKeyDown}
-        style={{ background:"#0A0C10", border:`1px solid ${C.border}`, borderRadius:9, color:"#fff", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", colorScheme:"dark", ...style }} />
+        style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", colorScheme:"light", ...style }} />
     );
 
     // ── Standings ────────────────────────────────────────────────────────────────
@@ -411,14 +482,14 @@
             <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, display:"flex", alignItems:"center", gap:7 }}>
               <div style={{ width:3, height:11, background:C.red, borderRadius:2 }}/>F1 News
             </div>
-            <span style={{ background:"rgba(255,128,0,.12)", color:C.orange, border:"1px solid rgba(255,128,0,.25)", borderRadius:6, padding:"2px 8px", fontSize:9, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase" }}>Coming Soon</span>
+            <span style={{ background:"color-mix(in srgb, var(--orange) 12%, transparent)", color:C.orange, border:"1px solid color-mix(in srgb, var(--orange) 25%, transparent)", borderRadius:6, padding:"2px 8px", fontSize:9, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase" }}>Coming Soon</span>
           </div>
           <div style={{ padding:"32px 20px", textAlign:"center" }}>
             <div style={{ fontSize:36, marginBottom:12 }}>🏎</div>
             <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:15, marginBottom:8 }}>Live F1 News Coming Soon</div>
             <div style={{ fontSize:13, color:C.dim, lineHeight:1.7, marginBottom:16 }}>Real-time headlines will appear here once enabled.</div>
             <a href="https://www.bbc.com/sport/formula1" target="_blank" rel="noopener noreferrer"
-              style={{ display:"inline-block", background:"rgba(232,0,45,.1)", border:"1px solid rgba(232,0,45,.25)", color:C.red, borderRadius:9, padding:"9px 16px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase", textDecoration:"none" }}>
+              style={{ display:"inline-block", background:"color-mix(in srgb, var(--accent) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--accent) 25%, transparent)", color:C.red, borderRadius:9, padding:"9px 16px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase", textDecoration:"none" }}>
               Read F1 News on BBC Sport →
             </a>
           </div>
@@ -434,7 +505,7 @@
       const nextFFA = next && new Date() >= freeForAllTime(next) && next.status !== "locked";
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
-      const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E8002D", mcmichael:"#FFD700", hattner:"#B370FF", yogesh:"#00C853" };
+      const PC = { lewis:"var(--teal)", zayd:"var(--orange)", toth:"var(--accent)", mcmichael:"var(--gold)", hattner:"#7A3FD1", yogesh:"var(--green)" };
 
       function msgTimeAgo(ts) {
         if (!ts) return "";
@@ -449,18 +520,18 @@
         <div className="anim">
 
           {next && (
-            <div style={{ background:"linear-gradient(135deg,#0C0D12 0%,#100508 100%)", border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.red}`, borderRadius:16, padding:"16px 18px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+            <div style={{ background:"linear-gradient(135deg, var(--head1) 0%, var(--head2) 100%)", border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.red}`, borderRadius:16, padding:"16px 18px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
               <div>
                 <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, marginBottom:4 }}>Next Race</div>
                 <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:17, letterSpacing:"-.01em", marginBottom:3 }}>{next.flag} {next.name}</div>
-                <div style={{ fontSize:12, color:"#8890A8" }}>
+                <div style={{ fontSize:12, color:"var(--subtext)" }}>
                 {next.hasSprint
                   ? <>Sprint: {fmtShort(keyDate(next))} · GP: {fmtShort(next.date)}</>
                   : fmtDate(next.date)
                 }
               </div>
               </div>
-              <div style={{ background:"rgba(232,0,45,.1)", border:"1px solid rgba(232,0,45,.25)", borderRadius:10, padding:"10px 14px", textAlign:"center", flexShrink:0 }}>
+              <div style={{ background:"color-mix(in srgb, var(--accent) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--accent) 25%, transparent)", borderRadius:10, padding:"10px 14px", textAlign:"center", flexShrink:0 }}>
                 <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:24, color:C.red, lineHeight:1, marginBottom:2 }}>{Object.keys(next.picks||{}).length}/{data.players.length}</div>
                 <div style={{ fontSize:9, color:C.dim, letterSpacing:".15em", textTransform:"uppercase" }}>Picked</div>
               </div>
@@ -492,7 +563,7 @@
             <Card>
               <ST color={C.teal}>{next.flag} {next.name} — Picks</ST>
               {nextFFA
-                ? <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(255,128,0,.1)", border:"1px solid rgba(255,128,0,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.orange }}>⚡ Free-for-all open — anyone can pick now!</div>
+                ? <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--orange) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.orange }}>⚡ Free-for-all open — anyone can pick now!</div>
                 : <div style={{ fontSize:11, color:C.dim, marginBottom:12, lineHeight:1.6 }}>
                     Based on last race result · Worst picks first<br/>
                     Free-for-all picking opens Friday 10am (Thursday 10am on sprint weekends)
@@ -503,7 +574,7 @@
                 const isNext = !hp && order.findIndex(x => !next.picks?.[x.id]) === i;
                 return (
                   <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
-                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"rgba(0,200,83,.12)":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"rgba(0,200,83,.3)":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.dim, flexShrink:0 }}>
+                    <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"color-mix(in srgb, var(--green) 12%, transparent)":isNext?C.red:"var(--surface2)", border:`1px solid ${hp?"color-mix(in srgb, var(--green) 28%, transparent)":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.dim, flexShrink:0 }}>
                       {hp ? "✓" : i+1}
                     </div>
                     <div style={{ flex:1 }}>
@@ -521,9 +592,9 @@
                   </div>
                 );
               })}
-              {next.hasSprint && !next._sprintSaved && <div style={{ marginTop:10, padding:"7px 10px", background:"rgba(255,128,0,.08)", border:"1px solid rgba(255,128,0,.2)", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
+              {next.hasSprint && !next._sprintSaved && <div style={{ marginTop:10, padding:"7px 10px", background:"color-mix(in srgb, var(--orange) 9%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 20%, transparent)", borderRadius:8, fontSize:11, color:C.orange }}>Sprint Weekend — same driver covers both sessions</div>}
               {next.hasSprint && next._sprintSaved && (
-                <div style={{ marginTop:12, padding:"12px 14px", background:"rgba(255,128,0,.08)", border:"1px solid rgba(255,128,0,.3)", borderRadius:10 }}>
+                <div style={{ marginTop:12, padding:"12px 14px", background:"color-mix(in srgb, var(--orange) 9%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 28%, transparent)", borderRadius:10 }}>
                   <div style={{ fontSize:11, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:C.orange, marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
                     🏁 Sprint Results In — GP Pending
                   </div>
@@ -532,7 +603,7 @@
                     .filter(p => p.driver)
                     .sort((a,b) => b.sPts - a.sPts)
                     .map((p,i,arr) => (
-                      <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:i<arr.length-1?`1px solid rgba(255,128,0,.12)`:"none" }}>
+                      <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:i<arr.length-1?`1px solid color-mix(in srgb, var(--orange) 12%, transparent)`:"none" }}>
                         <div style={{ flex:1, fontSize:13 }}>
                           <span style={{ fontWeight:600 }}>{p.name}</span>
                           <span style={{ color:C.dim, marginLeft:6, fontSize:11 }}>{p.driver}</span>
@@ -559,7 +630,7 @@
               </div>
               <div style={{ padding:"16px 18px" }}>
                 <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-                  <div style={{ width:32, height:32, borderRadius:"50%", background:"#101118", border:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:13, color:PC[latestMsg.playerId]||C.dim, flexShrink:0 }}>
+                  <div style={{ width:32, height:32, borderRadius:"50%", background:"var(--surface2)", border:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:13, color:PC[latestMsg.playerId]||C.dim, flexShrink:0 }}>
                     {(latestMsg.playerName||"?").charAt(0)}
                   </div>
                   <div style={{ flex:1 }}>
@@ -567,7 +638,7 @@
                       <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:13, color:PC[latestMsg.playerId]||C.dim }}>{latestMsg.playerName}</span>
                       <span style={{ fontSize:10, color:C.dim }}>{msgTimeAgo(latestMsg.ts)}</span>
                     </div>
-                    <div style={{ fontSize:14, color:"#F0F0F5", lineHeight:1.5, background:"#101118", borderRadius:"0 10px 10px 10px", padding:"9px 13px" }}>{latestMsg.text}</div>
+                    <div style={{ fontSize:14, color:"var(--text)", lineHeight:1.5, background:"var(--surface2)", borderRadius:"0 10px 10px 10px", padding:"9px 13px" }}>{latestMsg.text}</div>
                   </div>
                 </div>
               </div>
@@ -624,8 +695,8 @@
       const windowStart    = secondPickStart(next);
       const windowOpen     = new Date() >= windowStart && !picksLocked;
       const everyoneTime   = secondPickEveryoneTime(next);
-      const everyoneIn     = new Date() >= everyoneTime;
-      const { bottomIds }  = secondPickGroups(data.players, data.races);
+      const { bottomIds, staggered } = secondPickGroups(data.players, data.races);
+      const everyoneIn     = !staggered || new Date() >= everyoneTime;
       const taken2All      = [...taken, ...Object.values(picks2)];
       const available2     = DRIVERS.filter(d => !taken2All.includes(d));
       const eligibleFor2   = data.players.filter(p => !picks2[p.id] && (everyoneIn || bottomIds.has(p.id)));
@@ -675,7 +746,7 @@
 
       return (
         <div className="anim">
-          <div style={{ background:"linear-gradient(135deg,#0F1115 0%,#180808 100%)", border:`1px solid ${C.border}`, borderTop:`3px solid ${C.red}`, borderRadius:16, padding:20, marginBottom:14 }}>
+          <div style={{ background:"linear-gradient(135deg, var(--head1) 0%, var(--head2) 100%)", border:`1px solid ${C.border}`, borderTop:`3px solid ${C.red}`, borderRadius:16, padding:20, marginBottom:14 }}>
             <div style={{ fontSize:40, marginBottom:5 }}>{next.flag}</div>
             <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, textTransform:"uppercase", letterSpacing:".03em", marginBottom:4 }}>{next.name}</div>
             <div style={{ fontSize:12, color:C.dim, marginBottom:12 }}>{next.location} · {fmtDate(next.date)}</div>
@@ -697,7 +768,7 @@
               const isNext = !hp && order.findIndex(x => !picks[x.id]) === i;
               return (
                 <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
-                  <div style={{ width:27, height:27, borderRadius:"50%", flexShrink:0, background:hp?"#00C85318":isNext?C.red:"#1C1E24", border:`1px solid ${hp?"#00C85350":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.muted }}>
+                  <div style={{ width:27, height:27, borderRadius:"50%", flexShrink:0, background:hp?"color-mix(in srgb, var(--green) 12%, transparent)":isNext?C.red:"var(--surface2)", border:`1px solid ${hp?"color-mix(in srgb, var(--green) 40%, transparent)":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.muted }}>
                     {hp ? "✓" : i+1}
                   </div>
                   <div style={{ flex:1, fontSize:14, fontWeight:600 }}>{p.name}</div>
@@ -710,7 +781,7 @@
                 </div>
               );
             })}
-            {allPicked && <div style={{ marginTop:10, padding:10, background:"#00C85310", border:`1px solid #00C85330`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All picks are in! 🎉</div>}
+            {allPicked && <div style={{ marginTop:10, padding:10, background:"color-mix(in srgb, var(--green) 8%, transparent)", border:`1px solid color-mix(in srgb, var(--green) 28%, transparent)`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All picks are in! 🎉</div>}
           </Card>
 
           {!locked && !done && !confirming && (
@@ -721,14 +792,14 @@
                 {!freeForAll && (() => {
                   const turn = order.find(p => !picks[p.id]);
                   return turn ? (
-                    <div style={{ padding:"10px 12px", background:"#1a1d22", borderRadius:9, marginBottom:8 }}>
+                    <div style={{ padding:"10px 12px", background:"var(--surface2)", borderRadius:9, marginBottom:8 }}>
                       <div style={{ fontSize:10, color:C.dim, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>It's their turn to pick</div>
                       <div style={{ fontSize:15, fontWeight:600, color:C.gold }}>{turn.name}</div>
                     </div>
                   ) : null;
                 })()}
                 {freeForAll && (
-                  <div style={{ padding:"10px 12px", background:"#FF800015", border:"1px solid #FF800040", borderRadius:9, marginBottom:8 }}>
+                  <div style={{ padding:"10px 12px", background:"color-mix(in srgb, var(--orange) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 32%, transparent)", borderRadius:9, marginBottom:8 }}>
                     <div style={{ fontSize:10, color:C.orange, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>⚡ Free-for-all — picks open to everyone</div>
                     <div style={{ fontSize:12, color:C.dim }}>Less than 24 hours to qualifying — anyone can pick now</div>
                   </div>
@@ -753,7 +824,7 @@
           )}
 
           {confirming && (
-            <Card style={{ borderColor:"#FFD70040", background:"#0d0c00", textAlign:"center" }}>
+            <Card style={{ borderColor:"color-mix(in srgb, var(--gold) 32%, transparent)", background:"color-mix(in srgb, var(--gold) 8%, #fff)", textAlign:"center" }}>
               <div style={{ fontSize:36, marginBottom:12 }}>🏎</div>
               <div style={{ fontFamily:"Syne,sans-serif", fontSize:11, letterSpacing:".2em", textTransform:"uppercase", color:C.dim, marginBottom:16 }}>Confirm Your Pick</div>
               <div style={{ marginBottom:8 }}>
@@ -763,7 +834,7 @@
               <div style={{ fontSize:20, color:C.muted, marginBottom:8 }}>→</div>
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>Picking driver</div>
-                <div style={{ fontFamily:"Syne,sans-serif", fontSize:22, color:"#fff" }}>{driver}</div>
+                <div style={{ fontFamily:"Syne,sans-serif", fontSize:22, color:"var(--text)" }}>{driver}</div>
               </div>
               <div style={{ fontSize:11, color:C.dim, marginBottom:16 }}>for the {next.name}</div>
               <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
@@ -774,13 +845,13 @@
           )}
 
           {!confirming && locked && !allPicked && (
-            <Card style={{ borderColor:"#E1060030", background:"#180808" }}>
+            <Card style={{ borderColor:"color-mix(in srgb, var(--danger) 28%, transparent)", background:"color-mix(in srgb, var(--danger) 6%, #fff)" }}>
               <div style={{ fontSize:13, color:C.dim, textAlign:"center" }}>🔒 Pick window is closed. Picks reveal after the race.</div>
             </Card>
           )}
 
           {done && (
-            <Card style={{ borderColor:"#00C85340", background:"#001a0e", textAlign:"center" }}>
+            <Card style={{ borderColor:"color-mix(in srgb, var(--green) 35%, transparent)", background:"color-mix(in srgb, var(--green) 7%, #fff)", textAlign:"center" }}>
               <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
               <div style={{ fontFamily:"Syne,sans-serif", fontSize:18, color:C.green, marginBottom:6 }}>Pick Locked!</div>
               <div style={{ fontSize:13, color:C.dim }}>Good luck, {myName}!</div>
@@ -792,12 +863,13 @@
             <Card style={{ borderTop:`3px solid ${C.gold}` }}>
               <ST color={C.gold}>🏎 2nd Driver Pick</ST>
               {!everyoneIn ? (
-                <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(255,215,0,.1)", border:"1px solid rgba(255,215,0,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.gold }}>
+                <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--gold) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--gold) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.gold }}>
                   ⏳ Bottom 3 in standings get first access. Everyone else joins at {everyoneTime.toLocaleString("en-US",{ weekday:"short", hour:"numeric", minute:"2-digit" })}.
                 </div>
               ) : (
-                <div style={{ marginBottom:12, padding:"8px 11px", background:"rgba(0,200,83,.1)", border:"1px solid rgba(0,200,83,.3)", borderRadius:8, fontSize:11, fontWeight:600, color:C.green }}>
+                <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--green) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--green) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.green }}>
                   ⚡ Open to everyone now — first come, first served.
+                  {!staggered && <span style={{ display:"block", fontWeight:400, color:C.dim, marginTop:3 }}>No head start for the first two races of the season — the bottom-3 stagger begins at race 3.</span>}
                 </div>
               )}
               <div style={{ marginBottom:10 }}>
@@ -812,7 +884,7 @@
                   );
                 })}
               </div>
-              {allPicked2 && <div style={{ marginBottom:10, padding:10, background:"#00C85310", border:`1px solid #00C85330`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All 2nd drivers are in! 🎉</div>}
+              {allPicked2 && <div style={{ marginBottom:10, padding:10, background:"color-mix(in srgb, var(--green) 8%, transparent)", border:`1px solid color-mix(in srgb, var(--green) 28%, transparent)`, borderRadius:8, fontSize:12, color:C.green, textAlign:"center" }}>All 2nd drivers are in! 🎉</div>}
 
               {!allPicked2 && !done2 && !confirming2 && (
                 <>
@@ -831,7 +903,7 @@
                       {available2.map(d => <option key={d} value={d}>{d}</option>)}
                     </Sel>
                   </div>
-                  <Btn onClick={() => { if (!who2) { setErr2("Please select your name."); return; } if (!driver2) { setErr2("Please select a driver."); return; } setErr2(""); setConfirming2(true); }} disabled={sending2} style={{ background:C.gold, color:"#000" }}>Review My 2nd Pick →</Btn>
+                  <Btn onClick={() => { if (!who2) { setErr2("Please select your name."); return; } if (!driver2) { setErr2("Please select a driver."); return; } setErr2(""); setConfirming2(true); }} disabled={sending2} style={{ background:C.gold, color:"#fff" }}>Review My 2nd Pick →</Btn>
                 </>
               )}
 
@@ -844,7 +916,7 @@
                   <div style={{ fontSize:11, color:C.dim, marginBottom:14 }}>This is final — no changes after submitting.</div>
                   <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
                     <Btn variant="ghost" onClick={() => setConfirming2(false)}>← Go Back</Btn>
-                    <Btn onClick={submit2} disabled={sending2} style={{ background:C.gold, color:"#000" }}>{sending2 ? "Saving..." : "✅ Confirm 2nd Pick"}</Btn>
+                    <Btn onClick={submit2} disabled={sending2} style={{ background:C.gold, color:"#fff" }}>{sending2 ? "Saving..." : "✅ Confirm 2nd Pick"}</Btn>
                   </div>
                 </div>
               )}
@@ -859,10 +931,13 @@
             </Card>
           )}
           {!windowOpen && !picksLocked && (
-            <Card style={{ background:"#0d0d0d" }}>
+            <Card style={{ background:"var(--card2)" }}>
               <ST color={C.dim}>🏎 2nd Driver Pick</ST>
               <div style={{ fontSize:12, color:C.dim, lineHeight:1.7 }}>
-                Opens {windowStart.toLocaleString("en-US",{ weekday:"long", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })} — or sooner, the moment all six 1st picks are locked in. Bottom 3 in standings get 6 hours' early access.
+                Opens {windowStart.toLocaleString("en-US",{ weekday:"long", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })} — or sooner, the moment all six 1st picks are locked in.
+                {staggered
+                  ? " Bottom 3 in standings get 6 hours' early access."
+                  : " Open to everyone at once — the bottom-3 head start begins at race 3 of the season."}
               </div>
             </Card>
           )}
@@ -1099,7 +1174,7 @@
         <div className="anim">
           <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
             {SECS.map(([id,lbl]) => (
-              <button key={id} className="th bp" onClick={() => setSec(id)} style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", padding:"7px 11px", borderRadius:8, cursor:"pointer", border:`1px solid ${sec===id?C.red:C.border}`, background:sec===id?"#1a0000":"transparent", color:sec===id?C.red:C.dim }}>{lbl}</button>
+              <button key={id} className="th bp" onClick={() => setSec(id)} style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", padding:"7px 11px", borderRadius:8, cursor:"pointer", border:`1px solid ${sec===id?C.red:C.border}`, background:sec===id?"color-mix(in srgb, var(--accent) 10%, #fff)":"transparent", color:sec===id?C.red:C.dim }}>{lbl}</button>
             ))}
           </div>
 
@@ -1131,12 +1206,12 @@
                 </Sel>
               </div>
               {selRace?.status === "completed" && (
-                <div style={{ marginBottom:12, padding:"9px 11px", background:"#FF800015", border:"1px solid #FF800040", borderRadius:8, fontSize:12, color:C.orange }}>
+                <div style={{ marginBottom:12, padding:"9px 11px", background:"color-mix(in srgb, var(--orange) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 32%, transparent)", borderRadius:8, fontSize:12, color:C.orange }}>
                   ✏️ Editing a completed race — only points will be updated. Pick order for future races is not affected.
                 </div>
               )}
               {selRace && <>
-                <div style={{ fontSize:12, color:C.dim, marginBottom:14, padding:"9px 11px", background:"#1a1d22", borderRadius:8 }}>
+                <div style={{ fontSize:12, color:C.dim, marginBottom:14, padding:"9px 11px", background:"var(--surface2)", borderRadius:8 }}>
                   Picks: {Object.entries(selRace.picks||{}).map(([id,drv]) => `${data.players.find(p=>p.id===id)?.name} → ${drv}`).join(" · ") || "No picks yet"}
                 </div>
                 {selRace.hasSprint && (
@@ -1171,20 +1246,20 @@
                 </div>
                 {selRace.hasSprint && selRace.status !== "completed" ? (
                   <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                    <Btn onClick={saveSprint} style={{ background:C.orange, color:"#000" }}>Save Sprint Only 🏁</Btn>
+                    <Btn onClick={saveSprint} style={{ background:C.orange, color:"#fff" }}>Save Sprint Only 🏁</Btn>
                     <Btn onClick={saveResults}>Save GP & Finalize ✅</Btn>
                   </div>
                 ) : (
                   <Btn onClick={saveResults}>{selRace?.status === "completed" ? "Update Points ✅" : "Calculate & Save Points ✅"}</Btn>
                 )}
                 {selRace.hasSprint && selRace._sprintSaved && selRace.status !== "completed" && (
-                  <div style={{ marginTop:10, padding:"8px 11px", background:"rgba(0,200,83,.1)", border:"1px solid rgba(0,200,83,.25)", borderRadius:8, fontSize:11, color:C.green }}>
+                  <div style={{ marginTop:10, padding:"8px 11px", background:"color-mix(in srgb, var(--green) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--green) 25%, transparent)", borderRadius:8, fontSize:11, color:C.green }}>
                     ✓ Sprint points saved and showing in standings. Enter the GP finishing order and hit "Save GP & Finalize" to complete the race.
                   </div>
                 )}
                 {(selRace.status === "completed" || selRace._sprintSaved || Object.keys(selRace.points||{}).length > 0) && (
                   <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
-                    <Btn onClick={clearResults} style={{ background:"transparent", color:C.red, border:`1px solid ${C.red}40` }}>🗑 Clear Results (keep picks)</Btn>
+                    <Btn onClick={clearResults} style={{ background:"transparent", color:C.red, border:`1px solid color-mix(in srgb, var(--accent) 35%, transparent)` }}>🗑 Clear Results (keep picks)</Btn>
                     <div style={{ fontSize:11, color:C.dim, marginTop:8, lineHeight:1.6 }}>
                       Wipes this race's points and reopens picking. Everyone's driver picks are kept. Use this if you entered results by mistake.
                     </div>
@@ -1338,9 +1413,9 @@
                 </div>
                 {preview && (
                   <div>
-                    <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>To: <span style={{ color:"#ccc" }}>{preview.to}</span></div>
-                    <div style={{ fontSize:11, color:C.dim, marginBottom:9 }}>Subject: <span style={{ color:"#ccc" }}>{preview.subject}</span></div>
-                    <div style={{ background:"#0A0C10", borderRadius:9, padding:12, fontSize:12, lineHeight:1.8, color:"#ccc", whiteSpace:"pre-wrap" }}>{preview.body}</div>
+                    <div style={{ fontSize:11, color:C.dim, marginBottom:3 }}>To: <span style={{ color:"var(--subtext)" }}>{preview.to}</span></div>
+                    <div style={{ fontSize:11, color:C.dim, marginBottom:9 }}>Subject: <span style={{ color:"var(--subtext)" }}>{preview.subject}</span></div>
+                    <div style={{ background:"var(--field)", borderRadius:9, padding:12, fontSize:12, lineHeight:1.8, color:"var(--subtext)", whiteSpace:"pre-wrap" }}>{preview.body}</div>
                   </div>
                 )}
               </Card>
@@ -1415,7 +1490,7 @@
         return d.toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
       }
 
-      const PC = { lewis:"#00D2BE", zayd:"#FF8000", toth:"#E10600", mcmichael:"#FFD700", hattner:"#B370FF", yogesh:"#00C853" };
+      const PC = { lewis:"var(--teal)", zayd:"var(--orange)", toth:"var(--accent)", mcmichael:"var(--gold)", hattner:"#7A3FD1", yogesh:"var(--green)" };
       const SVG = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E\")";
 
       return (
@@ -1441,7 +1516,7 @@
                       <span style={{ fontFamily:"Syne,sans-serif", fontSize:12, color }}>{m.playerName}</span>
                       <span style={{ fontSize:10, color:C.muted }}>{fmtTs(m.ts)}</span>
                     </div>
-                    <div style={{ fontSize:14, color:"#ddd", lineHeight:1.5, background:"#0A0C10", borderRadius:"0 10px 10px 10px", padding:"8px 12px", maxWidth:"90%", wordBreak:"break-word" }}>
+                    <div style={{ fontSize:14, color:"var(--text)", lineHeight:1.5, background:"var(--field)", borderRadius:"0 10px 10px 10px", padding:"8px 12px", maxWidth:"90%", wordBreak:"break-word" }}>
                       {m.text}
                     </div>
                   </div>
@@ -1450,7 +1525,7 @@
               <div ref={bottomRef}/>
             </div>
             <div style={{ padding:"14px 18px", borderTop:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:8 }}>
-              <select value={who} onChange={e => setWho(e.target.value)} style={{ background:"#0A0C10", border:`1px solid ${C.border}`, borderRadius:9, color:"#fff", padding:"8px 12px", fontSize:12, fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:SVG, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 10px) center" }}>
+              <select value={who} onChange={e => setWho(e.target.value)} style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"8px 12px", fontSize:12, fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:SVG, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 10px) center" }}>
                 <option value="">Who are you?</option>
                 {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -1460,10 +1535,10 @@
                   onChange={e => setText(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && send()}
                   placeholder="Say something..."
-                  style={{ flex:1, background:"#0A0C10", border:`1px solid ${C.border}`, borderRadius:9, color:"#fff", padding:"9px 12px", fontSize:13, fontFamily:"DM Sans,sans-serif" }}
+                  style={{ flex:1, background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"9px 12px", fontSize:13, fontFamily:"DM Sans,sans-serif" }}
                 />
                 <button className="bp" onClick={send} disabled={sending || !who || !text.trim()}
-                  style={{ background:C.teal, color:"#000", border:"none", borderRadius:9, padding:"9px 16px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", cursor:"pointer", opacity:(!who||!text.trim()) ? .4 : 1 }}>
+                  style={{ background:C.teal, color:"#fff", border:"none", borderRadius:9, padding:"9px 16px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", cursor:"pointer", opacity:(!who||!text.trim()) ? .4 : 1 }}>
                   Send
                 </button>
               </div>
@@ -1478,10 +1553,12 @@
     function App() {
       const [data,      setData]      = useState(null);
       const [tab,       setTab]       = useState("standings");
+      const [team,      setTeam]      = useState(() => nextTeam(null));
       const [loaded,    setLoaded]    = useState(false);
       const [toast,     setToast]     = useState("");
       const [latestMsg, setLatestMsg] = useState(null);
       const toastTimer = useRef(null);
+      const emailFiredRef = useRef(null);
 
       useEffect(() => {
         emailjs.init(EMAILJS_PUBLIC_KEY);
@@ -1491,6 +1568,16 @@
         return () => { unsub(); unsubChat(); };
       }, []);
 
+      // Rotating team palette: applied on load, re-rolled on every tab switch.
+      // nextTeam() never returns the palette that's currently showing, so each
+      // change is visible.
+      useEffect(() => { applyTeam(team.id); }, [team]);
+
+      function changeTab(id) {
+        if (id !== tab) setTeam(t => nextTeam(t.id));
+        setTab(id);
+      }
+
       const update = useCallback(async (newData) => {
         setData(newData);
         await saveData(newData);
@@ -1499,12 +1586,16 @@
       // Semi-automatic 2nd-pick email: fires once, the next time anyone loads the
       // site after the 2nd-pick window opens for the next race. Tracked via a
       // Firestore flag (_secondPickEmailSent) so it never sends twice.
+      // The emailFiredRef guard stops a second send slipping through while the
+      // flag is still saving — this effect re-runs on every data change.
       useEffect(() => {
         if (!data) return;
         const next = data.races.find(r => r.status !== "completed");
         if (!next) return;
         const opened = new Date() >= secondPickStart(next);
         if (!opened || next._secondPickEmailSent) return;
+        if (emailFiredRef.current === next.id) return;
+        emailFiredRef.current = next.id;
         (async () => {
           const races = data.races.map(r => r.id === next.id ? { ...r, _secondPickEmailSent: true } : r);
           await saveData({ ...data, races });
@@ -1543,27 +1634,28 @@
       return (
         <>
           {toast && (
-            <div style={{ position:"fixed", top:14, right:14, zIndex:999, background:"#1a1d22", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 15px", fontFamily:"DM Sans,sans-serif", fontSize:13, color:"#fff", boxShadow:"0 8px 32px #0008", maxWidth:270 }}>
+            <div style={{ position:"fixed", top:14, right:14, zIndex:999, background:"var(--surface2)", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 15px", fontFamily:"DM Sans,sans-serif", fontSize:13, color:"var(--text)", boxShadow:"0 8px 28px rgba(0,0,0,.18)", maxWidth:270 }}>
               {toast}
             </div>
           )}
-          <div style={{ minHeight:"100vh", background:C.bg, color:"#fff" }}>
-            <div style={{ background:"rgba(8,9,13,.95)", backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
+          <div style={{ minHeight:"100vh", background:C.bg, color:"var(--text)" }}>
+            <div style={{ background:"color-mix(in srgb, var(--card) 92%, transparent)", backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
               <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", height:56 }}>
                 <div style={{ display:"flex", alignItems:"baseline", gap:9 }}>
                   <span style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:21, color:C.red, letterSpacing:"-.02em" }}>F1</span>
                   <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:17, letterSpacing:"-.01em" }}>FANTASY</span>
                   <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.dim, fontWeight:400, letterSpacing:".12em", textTransform:"uppercase" }}>2026</span>
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:9, color:C.red, fontWeight:600, letterSpacing:".14em", textTransform:"uppercase", paddingLeft:2 }}>{team.name}</span>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:2 }}>
                   {TABS.map(([id,icon]) => (
-                    <button key={id} className={`nav-tab${tab===id?" active":""}`} onClick={() => setTab(id)}>{icon}</button>
+                    <button key={id} className={`nav-tab${tab===id?" active":""}`} onClick={() => changeTab(id)}>{icon}</button>
                   ))}
                 </div>
               </div>
             </div>
             <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
-              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={setTab} />}
+              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} />}
               {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} />}
               {tab==="calendar"  && <CalendarTab  data={data} />}
               {tab==="chat"      && <ChatTab      players={data.players} />}
