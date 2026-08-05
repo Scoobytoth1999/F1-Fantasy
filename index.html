@@ -109,40 +109,20 @@
     .bp { transition:opacity .15s,transform .1s; cursor:pointer; }
     .bp:hover  { opacity:.85; transform:translateY(-1px); }
     .bp:active { transform:translateY(0); }
-    .menu-btn {
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:4px; width:38px; height:38px; border-radius:10px;
-      background:var(--field); border:1px solid var(--border); cursor:pointer;
-      transition:background .15s, border-color .15s;
+    .nav-tab {
+      background:none; border:none; border-bottom:2px solid transparent;
+      cursor:pointer; padding:10px 13px; font-size:18px; color:var(--muted);
+      transition:all .18s; line-height:1; border-radius:8px 8px 0 0;
     }
-    .menu-btn:hover { background:var(--surface2); }
-    .menu-btn span {
-      display:block; width:16px; height:2px; border-radius:2px;
-      background:var(--text); transition:transform .2s ease, opacity .2s ease;
+    .nav-tab:hover { color:var(--text); background:rgba(0,0,0,.04); }
+    .nav-tab.active {
+      color:var(--text); border-bottom-color:var(--accent);
+      background:color-mix(in srgb, var(--accent) 9%, transparent);
     }
-    .menu-btn.open span:nth-child(1) { transform:translateY(6px) rotate(45deg); }
-    .menu-btn.open span:nth-child(2) { opacity:0; }
-    .menu-btn.open span:nth-child(3) { transform:translateY(-6px) rotate(-45deg); }
-    .menu-overlay { position:fixed; inset:0; z-index:150; background:transparent; }
-    .menu-panel {
-      position:absolute; top:calc(100% + 8px); right:0; z-index:200;
-      background:var(--card); border:1px solid var(--border); border-radius:14px;
-      box-shadow:0 12px 32px rgba(0,0,0,.16); padding:6px; min-width:200px;
-      animation:fadeUp .16s ease;
-    }
-    .menu-item {
-      display:flex; align-items:center; gap:10px; width:100%;
-      padding:10px 12px; border-radius:9px; border:none; background:none;
-      cursor:pointer; text-align:left; font-family:'DM Sans',sans-serif;
-      font-size:14px; font-weight:500; color:var(--text); transition:background .12s;
-    }
-    .menu-item:hover { background:var(--surface2); }
-    .menu-item.active {
-      background:color-mix(in srgb, var(--accent) 10%, transparent); font-weight:700;
-    }
-    .menu-item .ico { font-size:16px; width:20px; text-align:center; }
     input[type=date]::-webkit-calendar-picker-indicator { filter:none; }
     input, select, button { outline:none; }
+    .news-scroll::-webkit-scrollbar { width:3px; }
+    .news-scroll::-webkit-scrollbar-thumb { background:var(--accent); border-radius:2px; }
   </style>
 </head>
 <body>
@@ -193,70 +173,14 @@
       document.documentElement.setAttribute("data-team", id);
     }
 
-    // ── Driver Research data ────────────────────────────────────────────────────
-    // Kept deliberately separate from DRIVERS (the pick list) so the two can't
-    // drift into each other. This is the real 2026 grid, by constructor.
-    const F1_TEAMS_2026 = [
-      { name:"Mercedes",     c1:"#00C2B0", c2:"#00786C", drivers:["Kimi Antonelli","George Russell"] },
-      { name:"Ferrari",      c1:"#E8002D", c2:"#9E0020", drivers:["Charles Leclerc","Lewis Hamilton"] },
-      { name:"McLaren",      c1:"#FF8000", c2:"#B35900", drivers:["Lando Norris","Oscar Piastri"] },
-      { name:"Red Bull",     c1:"#3671C6", c2:"#16305C", drivers:["Max Verstappen","Isack Hadjar"] },
-      { name:"Racing Bulls", c1:"#6C5CE7", c2:"#3D3494", drivers:["Liam Lawson","Arvid Lindblad"] },
-      { name:"Alpine",       c1:"#FF6DAE", c2:"#0090D0", drivers:["Pierre Gasly","Franco Colapinto"] },
-      { name:"Haas",         c1:"#9AA0A6", c2:"#5E6368", drivers:["Esteban Ocon","Oliver Bearman"] },
-      { name:"Audi",         c1:"#7A1120", c2:"#A9B4BD", drivers:["Gabriel Bortoleto","Nico Hulkenberg"] },
-      { name:"Williams",     c1:"#00A0E1", c2:"#0B5C90", drivers:["Alexander Albon","Carlos Sainz"] },
-      { name:"Aston Martin", c1:"#00A65A", c2:"#046B45", drivers:["Fernando Alonso","Lance Stroll"] },
-      { name:"Cadillac",     c1:"#C9A227", c2:"#7A5F14", drivers:["Sergio Perez","Valtteri Bottas"] },
+    const DRIVERS = [
+      "Max Verstappen","Lando Norris","Charles Leclerc","Oscar Piastri",
+      "George Russell","Kimi Antonelli","Fernando Alonso","Carlos Sainz",
+      "Lance Stroll","Pierre Gasly","Jack Doohan","Yuki Tsunoda",
+      "Liam Lawson","Alexander Albon","Franco Colapinto","Nico Hulkenberg",
+      "Gabriel Bortoleto","Oliver Bearman","Esteban Ocon","Isack Hadjar",
+      "Arvid Lindblad","Valtteri Bottas","Lewis Hamilton",
     ];
-    // driver name -> { team, color }
-    const DRIVER_META = (() => {
-      const m = {};
-      F1_TEAMS_2026.forEach(t => t.drivers.forEach((d,i) => {
-        m[d] = { team:t.name, color: i === 0 ? t.c1 : t.c2 };
-      }));
-      return m;
-    })();
-    const ROSTER_2026 = Object.keys(DRIVER_META);
-
-    // The pick list IS the 2026 grid — one source of truth, ordered by constructor
-    // so teammates sit together in every dropdown. Previously this was a separate
-    // hand-maintained array and had drifted to the 2025 roster.
-    const DRIVERS = ROSTER_2026;
-
-    // Finishing positions for every race run so far. Drivers absent from a race's
-    // object did not finish (DNF/DNS/withdrawn) — their line breaks at that race.
-    const SEED_DRIVER_RESULTS = {
-      "aus-2026": { "George Russell":1, "Kimi Antonelli":2, "Charles Leclerc":3, "Lewis Hamilton":4, "Lando Norris":5, "Max Verstappen":6, "Oliver Bearman":7, "Arvid Lindblad":8, "Gabriel Bortoleto":9, "Pierre Gasly":10, "Esteban Ocon":11, "Alexander Albon":12, "Liam Lawson":13, "Franco Colapinto":14, "Carlos Sainz":15, "Sergio Perez":16 },
-      "chn-2026": { "Kimi Antonelli":1, "George Russell":2, "Lewis Hamilton":3, "Charles Leclerc":4, "Oliver Bearman":5, "Pierre Gasly":6, "Liam Lawson":7, "Isack Hadjar":8, "Carlos Sainz":9, "Franco Colapinto":10, "Nico Hulkenberg":11, "Arvid Lindblad":12, "Valtteri Bottas":13, "Esteban Ocon":14, "Sergio Perez":15 },
-      "jpn-2026": { "Kimi Antonelli":1, "Oscar Piastri":2, "Charles Leclerc":3, "George Russell":4, "Lando Norris":5, "Lewis Hamilton":6, "Pierre Gasly":7, "Max Verstappen":8, "Liam Lawson":9, "Esteban Ocon":10, "Nico Hulkenberg":11, "Isack Hadjar":12, "Gabriel Bortoleto":13, "Arvid Lindblad":14, "Carlos Sainz":15, "Franco Colapinto":16, "Sergio Perez":17, "Fernando Alonso":18, "Valtteri Bottas":19, "Alexander Albon":20 },
-      "mia-2026": { "Kimi Antonelli":1, "Lando Norris":2, "Oscar Piastri":3, "George Russell":4, "Max Verstappen":5, "Lewis Hamilton":6, "Franco Colapinto":7, "Charles Leclerc":8, "Carlos Sainz":9, "Alexander Albon":10, "Oliver Bearman":11, "Gabriel Bortoleto":12, "Esteban Ocon":13, "Arvid Lindblad":14, "Fernando Alonso":15, "Sergio Perez":16, "Lance Stroll":17, "Valtteri Bottas":18 },
-      "can-2026": { "Kimi Antonelli":1, "Lewis Hamilton":2, "Max Verstappen":3, "Charles Leclerc":4, "Isack Hadjar":5, "Franco Colapinto":6, "Liam Lawson":7, "Pierre Gasly":8, "Carlos Sainz":9, "Oliver Bearman":10, "Oscar Piastri":11, "Nico Hulkenberg":12, "Gabriel Bortoleto":13, "Esteban Ocon":14, "Lance Stroll":15, "Valtteri Bottas":16 },
-      "mon-2026": { "Kimi Antonelli":1, "Lewis Hamilton":2, "Isack Hadjar":3, "Oscar Piastri":4, "Liam Lawson":5, "Arvid Lindblad":6, "Pierre Gasly":7, "Alexander Albon":8, "Esteban Ocon":9, "Fernando Alonso":10, "Gabriel Bortoleto":11, "George Russell":12, "Nico Hulkenberg":13, "Franco Colapinto":14, "Sergio Perez":15, "Carlos Sainz":16 },
-      "bar-2026": { "Lewis Hamilton":1, "George Russell":2, "Lando Norris":3, "Max Verstappen":4, "Oscar Piastri":5, "Isack Hadjar":6, "Pierre Gasly":7, "Liam Lawson":8, "Arvid Lindblad":9, "Franco Colapinto":10, "Gabriel Bortoleto":11, "Carlos Sainz":12, "Esteban Ocon":13, "Sergio Perez":14, "Charles Leclerc":15, "Kimi Antonelli":16, "Oliver Bearman":17 },
-      "aut-2026": { "George Russell":1, "Max Verstappen":2, "Kimi Antonelli":3, "Oscar Piastri":4, "Lewis Hamilton":5, "Isack Hadjar":6, "Lando Norris":7, "Charles Leclerc":8, "Liam Lawson":9, "Arvid Lindblad":10, "Gabriel Bortoleto":11, "Nico Hulkenberg":12, "Pierre Gasly":13, "Oliver Bearman":14, "Franco Colapinto":15, "Esteban Ocon":16, "Alexander Albon":17, "Fernando Alonso":18 },
-      "gbr-2026": { "Charles Leclerc":1, "George Russell":2, "Lewis Hamilton":3, "Lando Norris":4, "Isack Hadjar":5, "Liam Lawson":6, "Arvid Lindblad":7, "Gabriel Bortoleto":8, "Franco Colapinto":9, "Pierre Gasly":10, "Oscar Piastri":11, "Oliver Bearman":12, "Esteban Ocon":13, "Sergio Perez":14, "Kimi Antonelli":15, "Valtteri Bottas":16, "Carlos Sainz":17, "Fernando Alonso":18, "Lance Stroll":19, "Max Verstappen":20 },
-      "bel-2026": { "Kimi Antonelli":1, "Charles Leclerc":2, "Max Verstappen":3, "Lewis Hamilton":4, "Oscar Piastri":5, "Isack Hadjar":6, "Lando Norris":7, "Gabriel Bortoleto":8, "Arvid Lindblad":9, "Franco Colapinto":10, "Pierre Gasly":11, "Liam Lawson":12, "Nico Hulkenberg":13, "Oliver Bearman":14, "Alexander Albon":15, "Carlos Sainz":16, "Esteban Ocon":17, "Valtteri Bottas":18, "Fernando Alonso":19 },
-      "hun-2026": { "Lando Norris":1, "Max Verstappen":2, "Kimi Antonelli":3, "Charles Leclerc":4, "Lewis Hamilton":5, "Isack Hadjar":6, "George Russell":7, "Liam Lawson":8, "Nico Hulkenberg":9, "Arvid Lindblad":10, "Gabriel Bortoleto":11, "Pierre Gasly":12, "Lance Stroll":13, "Fernando Alonso":14, "Franco Colapinto":15, "Esteban Ocon":16, "Alexander Albon":17, "Carlos Sainz":18, "Oliver Bearman":19 },
-    };
-
-    // Loose name matching so pasted results don't have to be typed exactly.
-    function normName(s) {
-      return (s||"")
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
-    }
-    function matchDriver(raw) {
-      const cleaned = (raw||"").replace(/^\s*\d+\s*[.)-]?\s*/, "");
-      const n = normName(cleaned);
-      if (!n) return null;
-      let hit = ROSTER_2026.find(d => normName(d) === n);
-      if (hit) return hit;
-      hit = ROSTER_2026.find(d => normName(d).split(" ").slice(-1)[0] === n);
-      if (hit) return hit;
-      hit = ROSTER_2026.filter(d => normName(d).includes(n));
-      return hit.length === 1 ? hit[0] : null;
-    }
 
     const ALL_RACES = [
       { id:"aus-2026", name:"Australian Grand Prix",          location:"Melbourne",   flag:"🇦🇺", date:"2026-03-08", hasSprint:false, status:"completed", picks:{}, points:{lewis:{s:0,r:0},zayd:{s:0,r:0},toth:{s:0,r:0},mcmichael:{s:0,r:0}}, noLeague:true },
@@ -295,7 +219,6 @@
         { id:"yogesh",    name:"Yogesh",          email:"ysomani31@cranbrook.edu" },
       ],
       races: ALL_RACES,
-      driverResults: SEED_DRIVER_RESULTS,
     };
 
     // ── Firebase ────────────────────────────────────────────────────────────────
@@ -312,16 +235,7 @@
       if (!db) return DEFAULT_DATA;
       try {
         const doc = await db.collection("f1fantasy").doc("data").get();
-        if (doc.exists) {
-          const d = doc.data();
-          // One-time backfill: existing leagues predate the Research tab, so seed
-          // the completed-race driver results the first time this version loads.
-          if (!d.driverResults) {
-            d.driverResults = SEED_DRIVER_RESULTS;
-            await db.collection("f1fantasy").doc("data").set(d);
-          }
-          return d;
-        }
+        if (doc.exists) return doc.data();
         await db.collection("f1fantasy").doc("data").set(DEFAULT_DATA);
         return DEFAULT_DATA;
       } catch(e) {
@@ -561,6 +475,28 @@
 
     // ── Standings ────────────────────────────────────────────────────────────────
 
+    function NewsCard() {
+      return (
+        <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden", marginBottom:14 }}>
+          <div style={{ padding:"15px 18px 13px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, display:"flex", alignItems:"center", gap:7 }}>
+              <div style={{ width:3, height:11, background:C.red, borderRadius:2 }}/>F1 News
+            </div>
+            <span style={{ background:"color-mix(in srgb, var(--orange) 12%, transparent)", color:C.orange, border:"1px solid color-mix(in srgb, var(--orange) 25%, transparent)", borderRadius:6, padding:"2px 8px", fontSize:9, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase" }}>Coming Soon</span>
+          </div>
+          <div style={{ padding:"32px 20px", textAlign:"center" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>🏎</div>
+            <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:15, marginBottom:8 }}>Live F1 News Coming Soon</div>
+            <div style={{ fontSize:13, color:C.dim, lineHeight:1.7, marginBottom:16 }}>Real-time headlines will appear here once enabled.</div>
+            <a href="https://www.bbc.com/sport/formula1" target="_blank" rel="noopener noreferrer"
+              style={{ display:"inline-block", background:"color-mix(in srgb, var(--accent) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--accent) 25%, transparent)", color:C.red, borderRadius:9, padding:"9px 16px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase", textDecoration:"none" }}>
+              Read F1 News on BBC Sport →
+            </a>
+          </div>
+        </div>
+      );
+    }
+
         function StandingsTab({ data, latestMsg, setTab }) {
       const ranked = standings(data.players, data.races);
       const order  = pickOrder(data.players, data.races);
@@ -682,6 +618,8 @@
             </Card>
           )}
 
+          <NewsCard />
+
           {latestMsg && (
             <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden", marginBottom:14 }}>
               <div style={{ padding:"15px 18px 13px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -758,11 +696,7 @@
       const windowOpen     = new Date() >= windowStart && !picksLocked;
       const everyoneTime   = secondPickEveryoneTime(next);
       const { bottomIds, staggered } = secondPickGroups(data.players, data.races);
-      // Bottom group can finish early and unlock everyone else before the 6-hour
-      // clock runs out. bottomIds.size > 0 guard prevents a vacuous "everyone in
-      // bottomIds has picked" true when the tie rule collapsed the group to nobody.
-      const bottomAllPicked = staggered && bottomIds.size > 0 && [...bottomIds].every(id => (next.picks2 || {})[id]);
-      const everyoneIn     = !staggered || new Date() >= everyoneTime || bottomAllPicked;
+      const everyoneIn     = !staggered || new Date() >= everyoneTime;
       const taken2All      = [...taken, ...Object.values(picks2)];
       const available2     = DRIVERS.filter(d => !taken2All.includes(d));
       const eligibleFor2   = data.players.filter(p => !picks2[p.id] && (everyoneIn || bottomIds.has(p.id)));
@@ -930,7 +864,7 @@
               <ST color={C.gold}>🏎 2nd Driver Pick</ST>
               {!everyoneIn ? (
                 <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--gold) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--gold) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.gold }}>
-                  ⏳ Bottom 3 in standings get first access. Everyone else joins at {everyoneTime.toLocaleString("en-US",{ weekday:"short", hour:"numeric", minute:"2-digit" })} — or the moment all of them have picked, whichever comes first.
+                  ⏳ Bottom 3 in standings get first access. Everyone else joins at {everyoneTime.toLocaleString("en-US",{ weekday:"short", hour:"numeric", minute:"2-digit" })}.
                 </div>
               ) : (
                 <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--green) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--green) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.green }}>
@@ -1002,7 +936,7 @@
               <div style={{ fontSize:12, color:C.dim, lineHeight:1.7 }}>
                 Opens {windowStart.toLocaleString("en-US",{ weekday:"long", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })} — or sooner, the moment all six 1st picks are locked in.
                 {staggered
-                  ? " Bottom 3 in standings get up to 6 hours' early access — sooner if they all pick before then."
+                  ? " Bottom 3 in standings get 6 hours' early access."
                   : " Open to everyone at once — the bottom-3 head start begins at race 3 of the season."}
               </div>
             </Card>
@@ -1111,8 +1045,6 @@
       const [raceOrd,   setRaceOrd]   = useState(Array(10).fill(""));
       const [emails, setEmails] = useState(() => { const e={}; data.players.forEach(p => { e[p.id]=p.email||""; }); return e; });
       const [preview, setPreview] = useState(null);
-      const [drRaceId, setDrRaceId] = useState("");
-      const [drText,   setDrText]   = useState("");
 
       if (!auth) return (
         <div className="anim">
@@ -1164,29 +1096,19 @@
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
         const pts  = {};
         const pts2 = {};
-        // Safety net: if sprint results were already saved but the sprint-order form
-        // is completely blank, the admin is only entering the GP — keep the stored
-        // sprint points rather than recomputing them to zero.
-        const sprintFormBlank = selRace.hasSprint && selRace._sprintSaved && sprintOrd.every(d => !d);
         data.players.forEach(p => {
           const drv  = selRace.picks?.[p.id];
           const drv2 = selRace.picks2?.[p.id];
           if (!drv) { pts[p.id]={s:0,r:0}; } else {
             let s = 0;
-            if (selRace.hasSprint) {
-              if (sprintFormBlank) { s = selRace.points?.[p.id]?.s || 0; }
-              else { const pos=sprintOrd.indexOf(drv); if(pos>=0&&pos<8) s=SPR_PTS[pos]; }
-            }
+            if (selRace.hasSprint) { const pos=sprintOrd.indexOf(drv); if(pos>=0&&pos<8) s=SPR_PTS[pos]; }
             const rpos = raceOrd.indexOf(drv);
             const r = (rpos>=0&&rpos<10) ? GP_PTS[rpos] : 0;
             pts[p.id] = {s, r};
           }
           if (!drv2) { pts2[p.id]={s:0,r:0}; } else {
             let s2 = 0;
-            if (selRace.hasSprint) {
-              if (sprintFormBlank) { s2 = selRace.points2?.[p.id]?.s || 0; }
-              else { const pos2=sprintOrd.indexOf(drv2); if(pos2>=0&&pos2<8) s2=SPR_PTS[pos2]; }
-            }
+            if (selRace.hasSprint) { const pos2=sprintOrd.indexOf(drv2); if(pos2>=0&&pos2<8) s2=SPR_PTS[pos2]; }
             const rpos2 = raceOrd.indexOf(drv2);
             const r2 = (rpos2>=0&&rpos2<10) ? GP_PTS[rpos2] : 0;
             pts2[p.id] = {s:s2, r:r2};
@@ -1246,44 +1168,7 @@
         });
       }
 
-      // ── Driver research results (full 22-car finishing order) ──────────────────
-      // Parsed from a pasted finishing order, one driver per line, P1 first.
-      // Leading numbering ("1." / "1)") is stripped; last-name-only lines work too.
-      const drParsed = drText
-        .split("\n")
-        .map(l => l.trim())
-        .filter(Boolean)
-        .map((line, i) => ({ line, pos: i + 1, driver: matchDriver(line) }));
-      const drMatched   = drParsed.filter(p => p.driver);
-      const drUnmatched = drParsed.filter(p => !p.driver);
-      const drDupes     = drMatched
-        .map(p => p.driver)
-        .filter((d, i, a) => a.indexOf(d) !== i)
-        .filter((d, i, a) => a.indexOf(d) === i);
-
-      function saveDriverResults() {
-        if (!drRaceId) { showToast("Select a race first"); return; }
-        if (!drMatched.length) { showToast("Nothing to save — paste a finishing order"); return; }
-        if (drDupes.length) { showToast(`Duplicate driver: ${drDupes[0]} ❌`); return; }
-        const map = {};
-        drMatched.forEach(p => { map[p.driver] = p.pos; });
-        update({ ...data, driverResults: { ...(data.driverResults||{}), [drRaceId]: map } });
-        showToast(`Saved ${drMatched.length} finishers 🔬`);
-        setDrText("");
-      }
-
-      function clearDriverResults() {
-        if (!drRaceId) { showToast("Select a race first"); return; }
-        const r = data.races.find(x => x.id === drRaceId);
-        if (!window.confirm(`Remove research data for ${r?.name||drRaceId}?\n\nThis only affects the Driver Research chart — league picks and points are untouched.`)) return;
-        const dr = { ...(data.driverResults||{}) };
-        delete dr[drRaceId];
-        update({ ...data, driverResults: dr });
-        showToast("Research data cleared ✅");
-        setDrText("");
-      }
-
-      const SECS = [["results","📊 Results"],["races","🏁 Races"],["picks","✏️ Edit Picks"],["driverdata","🔬 Driver Data"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
+      const SECS = [["results","📊 Results"],["races","🏁 Races"],["picks","✏️ Edit Picks"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
 
       return (
         <div className="anim">
@@ -1301,22 +1186,16 @@
                 <Sel value={raceId} onChange={e => {
                   setRaceId(e.target.value);
                   const r = data.races.find(x => x.id === e.target.value);
-                  // Reconstruct sprint + GP order from saved points if available.
-                  // Must walk BOTH picks and picks2 — a slot filled only by someone's
-                  // second driver would otherwise come back blank, and re-saving would
-                  // silently zero that driver's points.
+                  // Reconstruct sprint order from saved points if available
                   const sO = Array(8).fill("");
                   const rO = Array(10).fill("");
-                  const rebuild = (picksMap, pointsMap) => {
-                    if (!picksMap || !pointsMap) return;
-                    Object.entries(picksMap).forEach(([pid, drv]) => {
-                      const pt = pointsMap[pid];
+                  if (r?.points && r.picks) {
+                    Object.entries(r.picks).forEach(([pid, drv]) => {
+                      const pt = r.points[pid];
                       if (pt?.s > 0) { const idx = SPR_PTS.indexOf(pt.s); if (idx >= 0 && !sO[idx]) sO[idx] = drv; }
-                      if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r);  if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
+                      if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r); if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
                     });
-                  };
-                  rebuild(r?.picks,  r?.points);
-                  rebuild(r?.picks2, r?.points2);
+                  }
                   setSprintOrd(sO); setRaceOrd(rO);
                 }}>
                   <option value="">Choose a race...</option>
@@ -1453,12 +1332,6 @@
                   {data.players.map(p => {
                     const currentPick  = race.picks?.[p.id] || "";
                     const currentPick2 = race.picks2?.[p.id] || "";
-                    // A pick saved under an older roster may name a driver who is no
-                    // longer on the grid. Keep it selectable so editing one player's
-                    // pick can't silently blank out another's.
-                    const pickPool = DRIVERS.concat(
-                      [currentPick, currentPick2].filter(d => d && !DRIVERS.includes(d))
-                    );
                     return (
                       <div key={p.id} style={{ padding:"8px 0", borderBottom:`1px solid ${C.border}` }}>
                         <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>{p.name}</div>
@@ -1477,7 +1350,7 @@
                             style={{ width:"auto", minWidth:150, flex:1 }}
                           >
                             <option value="">— Clear pick —</option>
-                            {pickPool.filter(d => d === currentPick || !Object.values(race.picks||{}).includes(d)).map(d => (
+                            {DRIVERS.filter(d => d === currentPick || !Object.values(race.picks||{}).includes(d)).map(d => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </Sel>
@@ -1497,7 +1370,7 @@
                             style={{ width:"auto", minWidth:150, flex:1 }}
                           >
                             <option value="">— Clear pick —</option>
-                            {pickPool.filter(d => d === currentPick2 || (!Object.values(race.picks||{}).includes(d) && !Object.values(race.picks2||{}).includes(d))).map(d => (
+                            {DRIVERS.filter(d => d === currentPick2 || (!Object.values(race.picks||{}).includes(d) && !Object.values(race.picks2||{}).includes(d))).map(d => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </Sel>
@@ -1509,91 +1382,6 @@
               ))}
               {upcoming.length > 0 && upcoming.every(r => Object.keys(r.picks||{}).length === 0 && Object.keys(r.picks2||{}).length === 0) && (
                 <div style={{ fontSize:13, color:C.dim, textAlign:"center", padding:"20px 0" }}>No picks have been made yet for upcoming races.</div>
-              )}
-            </Card>
-          )}
-
-          {sec==="driverdata" && (
-            <Card>
-              <ST color={C.teal}>🔬 Driver Research Data</ST>
-              <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:14 }}>
-                Feeds the Research tab only — this does not touch league picks, points or standings.
-                Paste the full finishing order, one driver per line, winner first. Numbering like
-                “1. Lando Norris” is fine, and last names alone work. Leave out anyone who
-                retired — their line will break at this race.
-              </div>
-
-              <div style={{ marginBottom:12 }}>
-                <Lbl>Select Race</Lbl>
-                <Sel value={drRaceId} onChange={e => {
-                  const id = e.target.value;
-                  setDrRaceId(id);
-                  const existing = (data.driverResults||{})[id];
-                  setDrText(existing
-                    ? Object.entries(existing).sort((a,b) => a[1]-b[1]).map(([d,p]) => `${p}. ${d}`).join("\n")
-                    : "");
-                }}>
-                  <option value="">Choose a race...</option>
-                  {data.races.map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.flag} {r.name}{(data.driverResults||{})[r.id] ? "  ✓" : ""}
-                    </option>
-                  ))}
-                </Sel>
-              </div>
-
-              {drRaceId && (
-                <>
-                  <Lbl>Finishing Order</Lbl>
-                  <textarea
-                    value={drText}
-                    onChange={e => setDrText(e.target.value)}
-                    rows={12}
-                    placeholder={"1. Lando Norris\n2. Max Verstappen\n3. Kimi Antonelli\n..."}
-                    style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9,
-                      color:"var(--text)", padding:"10px 12px", fontSize:13, width:"100%",
-                      fontFamily:"DM Sans,sans-serif", lineHeight:1.6, resize:"vertical", marginBottom:10 }}
-                  />
-
-                  {drParsed.length > 0 && (
-                    <div style={{ marginBottom:12, padding:"10px 12px", background:"var(--card2)",
-                      border:`1px solid ${C.border}`, borderRadius:9 }}>
-                      <div style={{ fontSize:11, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase",
-                        color:C.dim, marginBottom:8 }}>
-                        Preview — {drMatched.length} matched
-                        {drUnmatched.length > 0 && <span style={{ color:C.danger }}>, {drUnmatched.length} unrecognized</span>}
-                      </div>
-                      {drDupes.length > 0 && (
-                        <div style={{ fontSize:11.5, color:C.danger, marginBottom:8, fontWeight:600 }}>
-                          ⚠ Listed more than once: {drDupes.join(", ")} — fix before saving.
-                        </div>
-                      )}
-                      {drUnmatched.length > 0 && (
-                        <div style={{ fontSize:11.5, color:C.danger, marginBottom:8 }}>
-                          ⚠ Couldn't match: {drUnmatched.map(p => `"${p.line}"`).join(", ")} — these lines will be skipped.
-                        </div>
-                      )}
-                      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:2 }}>
-                        {drMatched.map(p => (
-                          <div key={p.pos} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12 }}>
-                            <span style={{ width:20, textAlign:"right", color:C.muted, fontSize:10.5 }}>P{p.pos}</span>
-                            <span style={{ width:9, height:3, borderRadius:2, background:DRIVER_META[p.driver].color, flexShrink:0 }} />
-                            <span style={{ color:"var(--text)" }}>{p.driver}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                    <Btn onClick={saveDriverResults} disabled={!drMatched.length || drDupes.length > 0}>
-                      Save Finishing Order
-                    </Btn>
-                    {(data.driverResults||{})[drRaceId] && (
-                      <Btn variant="ghost" onClick={clearDriverResults}>Remove This Race</Btn>
-                    )}
-                  </div>
-                </>
               )}
             </Card>
           )}
@@ -1760,190 +1548,6 @@
       );
     }
 
-    // ── Driver Research ───────────────────────────────────────────────────────────
-
-    function ResearchTab({ data }) {
-      const [hidden, setHidden] = useState(() => new Set());
-      const [focus,  setFocus]  = useState(null);   // driver name pinned by click
-      const [hover,  setHover]  = useState(null);
-
-      const results = data.driverResults || {};
-      // Races that have data, in official calendar order
-      const cols = data.races.filter(r => results[r.id] && Object.keys(results[r.id]).length);
-
-      if (!cols.length) return (
-        <div className="anim">
-          <Card>
-            <ST>🔬 Driver Research</ST>
-            <div style={{ fontSize:13, color:C.dim, lineHeight:1.7 }}>
-              No race results entered yet. Add them under <strong>Admin → Driver Data</strong> and every
-              driver's season will chart itself here.
-            </div>
-          </Card>
-        </div>
-      );
-
-      const short = r => (r.id.split("-")[0] || "").toUpperCase();
-
-      // ── Geometry ──
-      const W = 780, padL = 30, padR = 14, padT = 14, padB = 30;
-      const rowH = 22, H = padT + padB + rowH * 21;
-      const plotW = W - padL - padR;
-      const xAt = i => cols.length === 1 ? padL + plotW/2 : padL + (i * plotW) / (cols.length - 1);
-      const yAt = p => padT + (p - 1) * rowH;
-
-      const visible = ROSTER_2026.filter(d => !hidden.has(DRIVER_META[d].team));
-
-      function toggleTeam(t) {
-        setHidden(prev => {
-          const n = new Set(prev);
-          n.has(t) ? n.delete(t) : n.add(t);
-          return n;
-        });
-      }
-      const showAll  = () => setHidden(new Set());
-      const hideAll  = () => setHidden(new Set(F1_TEAMS_2026.map(t => t.name)));
-
-      // Build contiguous segments so a DNF leaves a visible gap in the line
-      function segmentsFor(driver) {
-        const segs = []; let cur = [];
-        cols.forEach((r, i) => {
-          const pos = results[r.id][driver];
-          if (pos) cur.push({ x: xAt(i), y: yAt(pos), pos, race: r });
-          else { if (cur.length) segs.push(cur); cur = []; }
-        });
-        if (cur.length) segs.push(cur);
-        return segs;
-      }
-
-      // Season summary for the legend: best finish + races finished
-      function summary(driver) {
-        const all = cols.map(r => results[r.id][driver]).filter(Boolean);
-        return { best: all.length ? Math.min(...all) : null, fin: all.length, of: cols.length };
-      }
-
-      return (
-        <div className="anim">
-          <Card>
-            <ST>🔬 Driver Research</ST>
-            <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:12 }}>
-              Every driver's finishing position, race by race. Lines climb toward the top as a driver
-              finishes higher. A break in a line is a DNF or a race they didn't start.
-              Tap a team to hide it, tap a driver to isolate them.
-            </div>
-
-            <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-              <Btn variant="ghost" onClick={showAll} style={{ padding:"6px 10px", fontSize:10 }}>All teams</Btn>
-              <Btn variant="ghost" onClick={hideAll} style={{ padding:"6px 10px", fontSize:10 }}>Clear</Btn>
-              {focus && <Btn variant="ghost" onClick={() => setFocus(null)} style={{ padding:"6px 10px", fontSize:10 }}>Unpin {focus.split(" ").slice(-1)[0]}</Btn>}
-            </div>
-
-            <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:14 }}>
-              {F1_TEAMS_2026.map(t => {
-                const off = hidden.has(t.name);
-                return (
-                  <button key={t.name} className="bp" onClick={() => toggleTeam(t.name)}
-                    style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 9px", borderRadius:20,
-                      border:`1px solid ${C.border}`, background:off ? "transparent" : "var(--field)",
-                      opacity: off ? .42 : 1, cursor:"pointer", fontFamily:"DM Sans,sans-serif",
-                      fontSize:10, fontWeight:600, letterSpacing:".04em", color:"var(--text)" }}>
-                    <span style={{ width:8, height:8, borderRadius:"50%", background:t.c1 }} />
-                    <span style={{ width:8, height:8, borderRadius:"50%", background:t.c2, marginLeft:-3 }} />
-                    {t.name}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* ── Chart ── */}
-            <div style={{ overflowX:"auto", position:"relative" }}>
-              <div style={{ position:"relative", minWidth:640 }}>
-                <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", display:"block" }}>
-                  {/* position gridlines */}
-                  {Array.from({length:22}, (_,k) => k+1).map(p => (
-                    <g key={p}>
-                      <line x1={padL} y1={yAt(p)} x2={W-padR} y2={yAt(p)}
-                        stroke="var(--border)" strokeWidth={p===1?1.2:0.6} opacity={p%5===1?0.9:0.45} />
-                      <text x={padL-7} y={yAt(p)+3.5} textAnchor="end"
-                        style={{ fontSize:9, fill:"var(--muted)", fontFamily:"DM Sans,sans-serif" }}>{p}</text>
-                    </g>
-                  ))}
-                  {/* race column markers */}
-                  {cols.map((r,i) => (
-                    <g key={r.id}>
-                      <line x1={xAt(i)} y1={padT} x2={xAt(i)} y2={H-padB} stroke="var(--border)" strokeWidth={0.6} opacity={0.5} />
-                      <text x={xAt(i)} y={H-padB+15} textAnchor="middle"
-                        style={{ fontSize:10, fontWeight:600, fill:"var(--dim)", fontFamily:"DM Sans,sans-serif" }}>{short(r)}</text>
-                    </g>
-                  ))}
-                  {/* driver traces */}
-                  {visible.map(d => {
-                    const meta = DRIVER_META[d];
-                    const dim  = focus && focus !== d;
-                    return (
-                      <g key={d} opacity={dim ? 0.12 : 1} style={{ transition:"opacity .15s" }}>
-                        {segmentsFor(d).map((seg,si) => (
-                          <polyline key={si} fill="none" stroke={meta.color}
-                            strokeWidth={focus === d ? 3.4 : 2}
-                            strokeLinejoin="round" strokeLinecap="round"
-                            points={seg.map(pt => `${pt.x},${pt.y}`).join(" ")} />
-                        ))}
-                        {segmentsFor(d).flat().map((pt,pi) => (
-                          <circle key={pi} cx={pt.x} cy={pt.y} r={focus === d ? 5 : 3.4}
-                            fill={meta.color} stroke="var(--card)" strokeWidth={1.2}
-                            style={{ cursor:"pointer" }}
-                            onMouseEnter={() => setHover({ d, pos:pt.pos, race:pt.race, x:pt.x, y:pt.y })}
-                            onMouseLeave={() => setHover(null)}
-                            onClick={() => setFocus(f => f === d ? null : d)} />
-                        ))}
-                      </g>
-                    );
-                  })}
-                </svg>
-                {hover && (
-                  <div style={{ position:"absolute", left:`${(hover.x/W)*100}%`, top:`${(hover.y/H)*100}%`,
-                    transform:"translate(-50%, -125%)", pointerEvents:"none", zIndex:5,
-                    background:"var(--card)", border:`1px solid ${C.border2 || C.border}`, borderRadius:9,
-                    padding:"7px 10px", boxShadow:"0 8px 22px rgba(0,0,0,.16)", whiteSpace:"nowrap" }}>
-                    <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:12, color:DRIVER_META[hover.d].color }}>{hover.d}</div>
-                    <div style={{ fontSize:11, color:"var(--text)", fontWeight:600 }}>P{hover.pos} · {hover.race.flag} {hover.race.location}</div>
-                    <div style={{ fontSize:10, color:C.muted }}>{DRIVER_META[hover.d].team}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* ── Driver legend / season summary ── */}
-          <Card>
-            <ST color={C.teal}>Drivers — {cols.length} race{cols.length===1?"":"s"} on record</ST>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(168px, 1fr))", gap:4 }}>
-              {ROSTER_2026.map(d => {
-                const meta = DRIVER_META[d];
-                const off  = hidden.has(meta.team);
-                const s    = summary(d);
-                return (
-                  <button key={d} className="bp" onClick={() => setFocus(f => f === d ? null : d)}
-                    style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 9px", borderRadius:9,
-                      border:`1px solid ${focus===d ? meta.color : "transparent"}`,
-                      background: focus===d ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent",
-                      opacity: off ? .35 : 1, cursor:"pointer", textAlign:"left", width:"100%" }}>
-                    <span style={{ width:11, height:3, borderRadius:2, background:meta.color, flexShrink:0 }} />
-                    <span style={{ flex:1, minWidth:0 }}>
-                      <span style={{ display:"block", fontSize:12.5, fontWeight:600, color:"var(--text)", overflow:"hidden", textOverflow:"ellipsis" }}>{d}</span>
-                      <span style={{ display:"block", fontSize:9.5, color:C.muted }}>
-                        {s.best ? `Best P${s.best} · ${s.fin}/${s.of} finished` : "No finishes"}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        </div>
-      );
-    }
-
     // ── Root ──────────────────────────────────────────────────────────────────────
 
     function App() {
@@ -1953,7 +1557,6 @@
       const [loaded,    setLoaded]    = useState(false);
       const [toast,     setToast]     = useState("");
       const [latestMsg, setLatestMsg] = useState(null);
-      const [menuOpen,  setMenuOpen]  = useState(false);
       const toastTimer = useRef(null);
       const emailFiredRef = useRef(null);
 
@@ -1973,15 +1576,7 @@
       function changeTab(id) {
         if (id !== tab) setTeam(t => nextTeam(t.id));
         setTab(id);
-        setMenuOpen(false);
       }
-
-      useEffect(() => {
-        if (!menuOpen) return;
-        const onKey = e => { if (e.key === "Escape") setMenuOpen(false); };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-      }, [menuOpen]);
 
       const update = useCallback(async (newData) => {
         setData(newData);
@@ -2034,7 +1629,7 @@
         </div>
       );
 
-      const TABS = [["standings","🏆","Standings"],["race","🏁","Pick Driver"],["calendar","📅","Calendar"],["research","🔬","Driver Research"],["chat","💬","Chat"],["admin","⚙️","Admin"]];
+      const TABS = [["standings","🏆","Standings"],["race","🏁","Pick Driver"],["calendar","📅","Calendar"],["chat","💬","Chat"],["admin","⚙️","Admin"]];
 
       return (
         <>
@@ -2052,31 +1647,10 @@
                   <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.dim, fontWeight:400, letterSpacing:".12em", textTransform:"uppercase" }}>2026</span>
                   <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:9, color:C.red, fontWeight:600, letterSpacing:".14em", textTransform:"uppercase", paddingLeft:2 }}>{team.name}</span>
                 </div>
-                <div style={{ position:"relative" }}>
-                  <button
-                    className={`menu-btn${menuOpen ? " open" : ""}`}
-                    onClick={() => setMenuOpen(o => !o)}
-                    aria-label="Open menu"
-                    aria-expanded={menuOpen}
-                  >
-                    <span></span><span></span><span></span>
-                  </button>
-                  {menuOpen && (
-                    <>
-                      <div className="menu-overlay" onClick={() => setMenuOpen(false)} />
-                      <div className="menu-panel">
-                        {TABS.map(([id,icon,label]) => (
-                          <button
-                            key={id}
-                            className={`menu-item${tab===id ? " active" : ""}`}
-                            onClick={() => changeTab(id)}
-                          >
-                            <span className="ico">{icon}</span>{label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+                  {TABS.map(([id,icon]) => (
+                    <button key={id} className={`nav-tab${tab===id?" active":""}`} onClick={() => changeTab(id)}>{icon}</button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -2084,7 +1658,6 @@
               {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} />}
               {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} />}
               {tab==="calendar"  && <CalendarTab  data={data} />}
-              {tab==="research"  && <ResearchTab  data={data} />}
               {tab==="chat"      && <ChatTab      players={data.players} />}
               {tab==="admin"     && <AdminTab     data={data} update={update} showToast={showToast} />}
             </div>
