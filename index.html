@@ -1153,7 +1153,10 @@
       );
 
       const upcoming   = data.races.filter(r => r.status !== "completed");
-      const completed  = data.races.filter(r => r.status === "completed" && !r.noLeague);
+      // _restored marks a synthetic carry-forward block holding recovered points with
+      // no underlying picks. Entering results against it would recompute from empty
+      // picks and zero the totals, so it must never appear in the results selector.
+      const completed  = data.races.filter(r => r.status === "completed" && !r.noLeague && !r._restored);
       const allRaces   = [...completed, ...upcoming];
       const selRace    = data.races.find(r => r.id === raceId);
 
@@ -1282,13 +1285,18 @@
         .filter((d, i, a) => a.indexOf(d) !== i)
         .filter((d, i, a) => a.indexOf(d) === i);
 
+      // The chart falls back to SEED_DRIVER_RESULTS while no driverResults field
+      // exists. Edits must therefore build on the seed, not on {} — otherwise the
+      // first race saved becomes the ONLY race and the 11 pre-loaded ones vanish.
+      const drBase = data.driverResults || SEED_DRIVER_RESULTS;
+
       function saveDriverResults() {
         if (!drRaceId) { showToast("Select a race first"); return; }
         if (!drMatched.length) { showToast("Nothing to save — paste a finishing order"); return; }
         if (drDupes.length) { showToast(`Duplicate driver: ${drDupes[0]} ❌`); return; }
         const map = {};
         drMatched.forEach(p => { map[p.driver] = p.pos; });
-        update({ ...data, driverResults: { ...(data.driverResults||{}), [drRaceId]: map } });
+        update({ ...data, driverResults: { ...drBase, [drRaceId]: map } });
         showToast(`Saved ${drMatched.length} finishers 🔬`);
         setDrText("");
       }
@@ -1297,7 +1305,7 @@
         if (!drRaceId) { showToast("Select a race first"); return; }
         const r = data.races.find(x => x.id === drRaceId);
         if (!window.confirm(`Remove research data for ${r?.name||drRaceId}?\n\nThis only affects the Driver Research chart — league picks and points are untouched.`)) return;
-        const dr = { ...(data.driverResults||{}) };
+        const dr = { ...drBase };
         delete dr[drRaceId];
         update({ ...data, driverResults: dr });
         showToast("Research data cleared ✅");
@@ -1586,7 +1594,7 @@
                 <Sel value={drRaceId} onChange={e => {
                   const id = e.target.value;
                   setDrRaceId(id);
-                  const existing = (data.driverResults||{})[id];
+                  const existing = drBase[id];
                   setDrText(existing
                     ? Object.entries(existing).sort((a,b) => a[1]-b[1]).map(([d,p]) => `${p}. ${d}`).join("\n")
                     : "");
@@ -1594,7 +1602,7 @@
                   <option value="">Choose a race...</option>
                   {data.races.map(r => (
                     <option key={r.id} value={r.id}>
-                      {r.flag} {r.name}{(data.driverResults||{})[r.id] ? "  ✓" : ""}
+                      {r.flag} {r.name}{drBase[r.id] ? "  ✓" : ""}
                     </option>
                   ))}
                 </Sel>
@@ -1647,7 +1655,7 @@
                     <Btn onClick={saveDriverResults} disabled={!drMatched.length || drDupes.length > 0}>
                       Save Finishing Order
                     </Btn>
-                    {(data.driverResults||{})[drRaceId] && (
+                    {drBase[drRaceId] && (
                       <Btn variant="ghost" onClick={clearDriverResults}>Remove This Race</Btn>
                     )}
                   </div>
