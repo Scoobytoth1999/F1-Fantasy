@@ -193,10 +193,10 @@
       document.documentElement.setAttribute("data-team", id);
     }
 
-    // ── Driver Research data ────────────────────────────────────────────────────
-    // Kept deliberately separate from DRIVERS (the pick list) so the two can't
-    // drift into each other. This is the real 2026 grid, by constructor.
-    const F1_TEAMS_2026 = [
+    // ── The grid ────────────────────────────────────────────────────────────────
+    // F1_TEAMS_BASE is the 2026 grid as it started the season. It is NEVER mutated
+    // and never written to Firestore — it is the floor everything else builds on.
+    const F1_TEAMS_BASE = [
       { name:"Mercedes",     c1:"#00C2B0", c2:"#00786C", drivers:["Kimi Antonelli","George Russell"] },
       { name:"Ferrari",      c1:"#E8002D", c2:"#9E0020", drivers:["Charles Leclerc","Lewis Hamilton"] },
       { name:"McLaren",      c1:"#FF8000", c2:"#B35900", drivers:["Lando Norris","Oscar Piastri"] },
@@ -209,20 +209,80 @@
       { name:"Aston Martin", c1:"#00A65A", c2:"#046B45", drivers:["Fernando Alonso","Lance Stroll"] },
       { name:"Cadillac",     c1:"#C9A227", c2:"#7A5F14", drivers:["Sergio Perez","Valtteri Bottas"] },
     ];
-    // driver name -> { team, color }
-    const DRIVER_META = (() => {
-      const m = {};
-      F1_TEAMS_2026.forEach(t => t.drivers.forEach((d,i) => {
-        m[d] = { team:t.name, color: i === 0 ? t.c1 : t.c2 };
-      }));
-      return m;
-    })();
-    const ROSTER_2026 = Object.keys(DRIVER_META);
+    // Lighten (amt > 0) or darken (amt < 0) a hex colour. Used to give a team's
+    // third-and-beyond driver a shade that still reads as that team.
+    function shade(hex, amt) {
+      const n = parseInt(String(hex).replace("#",""), 16);
+      if (Number.isNaN(n)) return hex;
+      return "#" + [(n>>16)&255, (n>>8)&255, n&255]
+        .map(v => Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255-v)*amt : v*(1+amt)))))
+        .map(v => v.toString(16).padStart(2,"0")).join("");
+    }
+    const FALLBACK_TEAM = { c1:"#8892A0", c2:"#5A6270" };
 
-    // The pick list IS the 2026 grid — one source of truth, ordered by constructor
-    // so teammates sit together in every dropdown. Previously this was a separate
-    // hand-maintained array and had drifted to the 2025 roster.
-    const DRIVERS = ROSTER_2026;
+    // ── Live roster registries ──────────────────────────────────────────────────
+    // These four are what the rest of the app actually reads. They are rebuilt from
+    // F1_TEAMS_BASE plus league state (customDrivers / inactiveDrivers) and are
+    // mutated IN PLACE, so every existing reference stays valid — no prop threading.
+    //
+    //   ROSTER_2026 — every driver the app knows about, including injured ones.
+    //                 Used for results entry, name matching and the research chart,
+    //                 so history never breaks when someone leaves the grid.
+    //   DRIVERS     — the pickable list: ROSTER_2026 minus anyone marked inactive.
+    const F1_TEAMS_2026 = [];
+    const DRIVER_META   = {};
+    const ROSTER_2026   = [];
+    const DRIVERS       = [];
+
+    let _rosterKey = null;
+
+    function rebuildRoster(customDrivers, inactiveDrivers) {
+      const customs  = Array.isArray(customDrivers)   ? customDrivers   : [];
+      const inactive = Array.isArray(inactiveDrivers) ? inactiveDrivers : [];
+      // Called on every App render, so bail early when nothing changed.
+      const key = JSON.stringify([customs, inactive]);
+      if (key === _rosterKey) return;
+      _rosterKey = key;
+
+      const teams  = F1_TEAMS_BASE.map(t => ({ ...t, drivers:[...t.drivers] }));
+      const byName = {};
+      teams.forEach(t => { byName[t.name] = t; });
+
+      customs.forEach(cd => {
+        if (!cd || !cd.name) return;
+        const teamName = cd.team || "Independent";
+        let t = byName[teamName];
+        if (!t) {
+          // Unknown constructor (hand-edited data, or a future team). Give it a
+          // neutral palette rather than dropping the driver on the floor.
+          t = { name:teamName, ...FALLBACK_TEAM, drivers:[], isCustomTeam:true };
+          byName[teamName] = t;
+          teams.push(t);
+        }
+        if (!t.drivers.includes(cd.name)) t.drivers.push(cd.name);
+      });
+
+      const customNames = new Set(customs.map(c => c && c.name).filter(Boolean));
+
+      F1_TEAMS_2026.length = 0;
+      F1_TEAMS_2026.push(...teams);
+
+      Object.keys(DRIVER_META).forEach(k => delete DRIVER_META[k]);
+      ROSTER_2026.length = 0;
+      teams.forEach(t => t.drivers.forEach((d,i) => {
+        DRIVER_META[d] = {
+          team:   t.name,
+          color:  i === 0 ? t.c1 : i === 1 ? t.c2 : shade(i % 2 === 0 ? t.c1 : t.c2, 0.42),
+          custom: customNames.has(d),
+        };
+        ROSTER_2026.push(d);
+      }));
+
+      const out = new Set(inactive);
+      DRIVERS.length = 0;
+      DRIVERS.push(...ROSTER_2026.filter(d => !out.has(d)));
+    }
+    rebuildRoster([], []);   // base grid until Firestore data arrives
 
     // Finishing positions for every race run so far. Drivers absent from a race's
     // object did not finish (DNF/DNS/withdrawn) — their line breaks at that race.
@@ -729,6 +789,105 @@
         </div>
       );
     }
+    // ── Custom drivers ───────────────────────────────────────────────────────────
+    // Reserve/stand-in drivers added mid-season. Stored on the league document as
+    // data.customDrivers = [{ name, team, addedBy, addedAt }] so they survive
+    // reloads, ride along in backups, and are visible to every player at once.
+
+    // Tidy a typed name: collapse whitespace, capitalise each word. Keeps
+    // "van Amersfoort"-style particles alone and leaves hyphenated names intact.
+    const NAME_PARTICLES = new Set(["van","von","de","del","der","da","di","dos","la","le"]);
+    function tidyName(raw) {
+      return (raw||"").replace(/\s+/g," ").trim().split(" ").map((w,i) => {
+        const lw = w.toLowerCase();
+        if (i > 0 && NAME_PARTICLES.has(lw)) return lw;
+        return w.split("-").map(p => p ? p.charAt(0).toUpperCase() + p.slice(1) : p).join("-");
+      }).join(" ");
+    }
+
+    // Returns an error string, or "" when the name is safe to add.
+    function validateNewDriver(name, team) {
+      const clean = tidyName(name);
+      if (clean.length < 3)            return "Enter the driver's full name.";
+      if (!/[a-zA-Z]/.test(clean))     return "That doesn't look like a name.";
+      if (clean.split(" ").length < 2) return "Use a first and last name so results matching works.";
+      if (!team)                       return "Pick the team they're driving for.";
+      const n   = normName(clean);
+      const dup = ROSTER_2026.find(d => normName(d) === n);
+      if (dup) return `${dup} is already on the grid.`;
+      // Last-name collision: "Verstappen" vs "Max Verstappen" would make pasted
+      // results ambiguous, and matchDriver() would silently pick neither.
+      const last = n.split(" ").slice(-1)[0];
+      const clash = ROSTER_2026.find(d => normName(d).split(" ").slice(-1)[0] === last);
+      if (clash) return `Shares a surname with ${clash} — results matching can't tell them apart.`;
+      return "";
+    }
+
+    // Inline "driver not listed?" form. Used in both pick sections.
+    function AddDriverInline({ data, update, showToast, whoId, onAdded, accent=C.teal }) {
+      const [open,   setOpen]   = useState(false);
+      const [name,   setName]   = useState("");
+      const [team,   setTeam]   = useState("");
+      const [err,    setErr]    = useState("");
+      const [saving, setSaving] = useState(false);
+
+      async function add() {
+        const clean = tidyName(name);
+        const problem = validateNewDriver(clean, team);
+        if (problem) { setErr(problem); return; }
+        setSaving(true);
+        const entry = {
+          name: clean,
+          team,
+          addedBy: whoId || "unknown",
+          addedAt: new Date().toISOString(),
+        };
+        await update({ ...data, customDrivers: [...(data.customDrivers||[]), entry] });
+        setSaving(false);
+        setOpen(false); setName(""); setTeam(""); setErr("");
+        showToast(`${clean} added to the grid 🏎`);
+        if (onAdded) onAdded(clean);
+      }
+
+      if (!open) return (
+        <button className="bp" onClick={() => setOpen(true)}
+          style={{ background:"none", border:"none", padding:0, marginTop:-6, marginBottom:12, cursor:"pointer",
+            fontFamily:"DM Sans,sans-serif", fontSize:11.5, fontWeight:600, color:accent, textDecoration:"underline" }}>
+          ＋ Driver not listed? Add a stand-in
+        </button>
+      );
+
+      return (
+        <div style={{ marginBottom:14, padding:"12px 13px", background:"var(--surface2)",
+          border:`1px solid color-mix(in srgb, ${accent} 30%, transparent)`, borderRadius:10 }}>
+          <div style={{ fontSize:11.5, color:C.dim, lineHeight:1.6, marginBottom:10 }}>
+            For a reserve driver standing in for someone injured. They're added for
+            <strong> everyone, permanently</strong> — so check the spelling against the entry list.
+          </div>
+          {err && <div style={{ color:C.danger, fontSize:12, marginBottom:9, fontWeight:600 }}>{err}</div>}
+          <div style={{ marginBottom:9 }}>
+            <Lbl>Driver Name</Lbl>
+            <Inp value={name} onChange={e => { setName(e.target.value); setErr(""); }}
+              placeholder="e.g. Ayumu Iwasa"
+              onKeyDown={e => e.key === "Enter" && !saving && add()} />
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <Lbl>Driving For</Lbl>
+            <Sel value={team} onChange={e => { setTeam(e.target.value); setErr(""); }}>
+              <option value="">Select a team...</option>
+              {F1_TEAMS_BASE.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </Sel>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <Btn variant="ghost" onClick={() => { setOpen(false); setErr(""); }}>Cancel</Btn>
+            <Btn onClick={add} disabled={saving} style={{ background:accent, color:"#fff" }}>
+              {saving ? "Adding..." : "Add Driver"}
+            </Btn>
+          </div>
+        </div>
+      );
+    }
+
     // ── This Race ────────────────────────────────────────────────────────────────
 
     function RaceTab({ data, update, showToast }) {
@@ -897,13 +1056,17 @@
                   }
                 </Sel>
               </div>
-              <div style={{ marginBottom:14 }}>
+              <div style={{ marginBottom:9 }}>
                 <Lbl>Your Driver</Lbl>
                 <Sel value={driver} onChange={e => setDriver(e.target.value)}>
                   <option value="">Select a driver...</option>
-                  {available.map(d => <option key={d} value={d}>{d}</option>)}
+                  {available.map(d => (
+                    <option key={d} value={d}>{d}{DRIVER_META[d]?.custom ? "  (stand-in)" : ""}</option>
+                  ))}
                 </Sel>
               </div>
+              <AddDriverInline data={data} update={update} showToast={showToast} whoId={who}
+                onAdded={n => setDriver(n)} />
               <Btn onClick={() => { if (!who) { setErr("Please select your name."); return; } if (!driver) { setErr("Please select a driver."); return; } setErr(""); setConfirming(true); }} disabled={sending}>Review My Pick →</Btn>
             </Card>
           )}
@@ -981,13 +1144,17 @@
                       {eligibleFor2.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </Sel>
                   </div>
-                  <div style={{ marginBottom:14 }}>
+                  <div style={{ marginBottom:9 }}>
                     <Lbl>Your 2nd Driver</Lbl>
                     <Sel value={driver2} onChange={e => setDriver2(e.target.value)}>
                       <option value="">Select a driver...</option>
-                      {available2.map(d => <option key={d} value={d}>{d}</option>)}
+                      {available2.map(d => (
+                        <option key={d} value={d}>{d}{DRIVER_META[d]?.custom ? "  (stand-in)" : ""}</option>
+                      ))}
                     </Sel>
                   </div>
+                  <AddDriverInline data={data} update={update} showToast={showToast} whoId={who2}
+                    onAdded={n => setDriver2(n)} accent={C.gold} />
                   <Btn onClick={() => { if (!who2) { setErr2("Please select your name."); return; } if (!driver2) { setErr2("Please select a driver."); return; } setErr2(""); setConfirming2(true); }} disabled={sending2} style={{ background:C.gold, color:"#fff" }}>Review My 2nd Pick →</Btn>
                 </>
               )}
@@ -1134,6 +1301,9 @@
       const [drText,   setDrText]   = useState("");
       const [importText, setImportText] = useState("");
       const [restoring,  setRestoring]  = useState(false);
+      const [gName, setGName] = useState("");
+      const [gTeam, setGTeam] = useState("");
+      const [gErr,  setGErr]  = useState("");
 
       if (!auth) return (
         <div className="anim">
@@ -1349,7 +1519,7 @@
         }
       }
 
-      const SECS = [["results","📊 Results"],["races","🏁 Races"],["picks","✏️ Edit Picks"],["driverdata","🔬 Driver Data"],["backup","💾 Backup"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
+      const SECS = [["results","📊 Results"],["races","🏁 Races"],["picks","✏️ Edit Picks"],["grid","🏎 Grid"],["driverdata","🔬 Driver Data"],["backup","💾 Backup"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
 
       return (
         <div className="anim">
@@ -1410,7 +1580,7 @@
                           <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Syne,sans-serif", flexShrink:0 }}>{i+1}.</div>
                           <Sel value={sprintOrd[i]} onChange={e => { const o=[...sprintOrd]; o[i]=e.target.value; setSprintOrd(o); }}>
                             <option value="">—</option>
-                            {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
+                            {ROSTER_2026.map(d => <option key={d} value={d}>{d}</option>)}
                           </Sel>
                         </div>
                       ))}
@@ -1425,7 +1595,7 @@
                         <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Syne,sans-serif", flexShrink:0 }}>{i+1}.</div>
                         <Sel value={raceOrd[i]} onChange={e => { const o=[...raceOrd]; o[i]=e.target.value; setRaceOrd(o); }}>
                           <option value="">—</option>
-                          {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
+                          {ROSTER_2026.map(d => <option key={d} value={d}>{d}</option>)}
                         </Sel>
                       </div>
                     ))}
@@ -1578,6 +1748,138 @@
               )}
             </Card>
           )}
+
+          {sec==="grid" && (() => {
+            const customs  = data.customDrivers   || [];
+            const inactive = data.inactiveDrivers || [];
+            const dr       = data.driverResults   || SEED_DRIVER_RESULTS;
+
+            // Where a driver already appears. Removing someone who has been picked
+            // would leave an orphaned pick that no longer resolves to a driver.
+            function usage(name) {
+              const picked = data.races.filter(r =>
+                Object.values(r.picks||{}).includes(name) ||
+                Object.values(r.picks2||{}).includes(name)
+              ).map(r => r.name);
+              const scored = Object.keys(dr).filter(id => dr[id] && dr[id][name] != null);
+              return { picked, scored };
+            }
+
+            function addDriver() {
+              const clean   = tidyName(gName);
+              const problem = validateNewDriver(clean, gTeam);
+              if (problem) { setGErr(problem); return; }
+              update({ ...data, customDrivers: [...customs, {
+                name: clean, team: gTeam, addedBy: "admin", addedAt: new Date().toISOString(),
+              }]});
+              setGName(""); setGTeam(""); setGErr("");
+              showToast(`${clean} added to the grid 🏎`);
+            }
+
+            function removeDriver(name) {
+              const u = usage(name);
+              if (u.picked.length) {
+                window.alert(`Can't remove ${name} — already picked for: ${u.picked.join(", ")}.\n\nRemoving them would leave picks pointing at a driver that no longer exists. Mark them Out instead.`);
+                return;
+              }
+              let msg = `Remove ${name} from the grid entirely?`;
+              if (u.scored.length) msg += `\n\nThey have finishing positions saved for ${u.scored.length} race(s); those entries will simply stop being charted.`;
+              if (!window.confirm(msg)) return;
+              update({ ...data,
+                customDrivers:   customs.filter(c => c.name !== name),
+                inactiveDrivers: inactive.filter(n => n !== name),
+              });
+              showToast(`${name} removed`);
+            }
+
+            function toggleOut(name) {
+              const isOut = inactive.includes(name);
+              update({ ...data, inactiveDrivers: isOut
+                ? inactive.filter(n => n !== name)
+                : [...inactive, name] });
+              showToast(isOut ? `${name} back in the pick list` : `${name} hidden from picks`);
+            }
+
+            return (
+              <>
+                <Card>
+                  <ST color={C.gold}>🏎 Add a Stand-In Driver</ST>
+                  <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:14 }}>
+                    Adds a driver to the grid permanently — pick lists, results entry, name
+                    matching and the research chart all pick them up straight away. Players can
+                    also do this themselves from the Pick Driver tab.
+                  </div>
+                  {gErr && <div style={{ color:C.danger, fontSize:12, marginBottom:10, fontWeight:600 }}>{gErr}</div>}
+                  <div style={{ marginBottom:10 }}>
+                    <Lbl>Driver Name</Lbl>
+                    <Inp value={gName} onChange={e => { setGName(e.target.value); setGErr(""); }}
+                      placeholder="e.g. Ayumu Iwasa"
+                      onKeyDown={e => e.key === "Enter" && addDriver()} />
+                  </div>
+                  <div style={{ marginBottom:13 }}>
+                    <Lbl>Driving For</Lbl>
+                    <Sel value={gTeam} onChange={e => { setGTeam(e.target.value); setGErr(""); }}>
+                      <option value="">Select a team...</option>
+                      {F1_TEAMS_BASE.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                    </Sel>
+                  </div>
+                  <Btn onClick={addDriver}>Add to Grid</Btn>
+                </Card>
+
+                <Card>
+                  <ST color={C.teal}>Full Grid — {ROSTER_2026.length} drivers</ST>
+                  <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:14 }}>
+                    <strong>Out</strong> hides an injured or withdrawn driver from the pick lists
+                    while keeping every result and chart line they already have. That's almost
+                    always what you want — <strong>Remove</strong> is only for a stand-in added by
+                    mistake, and is blocked once anyone has picked them.
+                  </div>
+                  {F1_TEAMS_2026.map(t => (
+                    <div key={t.name} style={{ marginBottom:13 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
+                        <span style={{ width:8, height:8, borderRadius:"50%", background:t.c1 }} />
+                        <span style={{ width:8, height:8, borderRadius:"50%", background:t.c2, marginLeft:-3 }} />
+                        <span style={{ fontFamily:"Syne,sans-serif", fontSize:12, fontWeight:700 }}>{t.name}</span>
+                      </div>
+                      {t.drivers.map(d => {
+                        const meta   = DRIVER_META[d] || {};
+                        const isOut  = inactive.includes(d);
+                        return (
+                          <div key={d} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0 6px 14px",
+                            borderBottom:`1px solid ${C.border}` }}>
+                            <span style={{ width:11, height:3, borderRadius:2, background:meta.color, flexShrink:0 }} />
+                            <span style={{ flex:1, minWidth:0, fontSize:13, fontWeight:600,
+                              color: isOut ? C.muted : "var(--text)",
+                              textDecoration: isOut ? "line-through" : "none" }}>{d}</span>
+                            {meta.custom && <Badge color={C.gold}>Stand-in</Badge>}
+                            {isOut && <Badge color={C.danger}>Out</Badge>}
+                            <button className="bp" onClick={() => toggleOut(d)}
+                              style={{ background:"none", border:"none", padding:"2px 4px", cursor:"pointer",
+                                fontFamily:"DM Sans,sans-serif", fontSize:10.5, fontWeight:600,
+                                letterSpacing:".08em", textTransform:"uppercase",
+                                color: isOut ? C.green : C.dim }}>
+                              {isOut ? "Bring back" : "Mark out"}
+                            </button>
+                            {meta.custom && (
+                              <button className="bp" onClick={() => removeDriver(d)}
+                                style={{ background:"none", border:"none", padding:"2px 4px", cursor:"pointer",
+                                  fontFamily:"DM Sans,sans-serif", fontSize:10.5, fontWeight:600,
+                                  letterSpacing:".08em", textTransform:"uppercase", color:C.danger }}>
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  <div style={{ fontSize:11.5, color:C.muted, marginTop:6 }}>
+                    {DRIVERS.length} of {ROSTER_2026.length} drivers are currently pickable.
+                  </div>
+                </Card>
+              </>
+            );
+          })()}
 
           {sec==="driverdata" && (
             <Card>
@@ -2143,6 +2445,12 @@
         if (toastTimer.current) clearTimeout(toastTimer.current);
         toastTimer.current = setTimeout(() => setToast(""), 3500);
       }
+
+      // Sync the roster registries with league state. Deliberately done here in the
+      // render body, not in an effect: children render after App returns, so they
+      // always see the current roster. rebuildRoster() is idempotent and no-ops
+      // when nothing changed, so calling it every render is cheap and safe.
+      rebuildRoster(data && data.customDrivers, data && data.inactiveDrivers);
 
       if (!loaded) return (
         <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
