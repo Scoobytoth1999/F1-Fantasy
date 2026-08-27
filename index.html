@@ -2236,4 +2236,324 @@
         <div className="anim">
           <Card>
             <ST>🔬 Driver Research</ST>
-            <div style={{ fontSize:12, color:C.dim, lineHeight
+            <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:12 }}>
+              Every driver's finishing position, race by race. Lines climb toward the top as a driver
+              finishes higher. A break in a line is a DNF or a race they didn't start.
+              Tap a team to hide it, tap a driver to isolate them.
+            </div>
+
+            <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+              <Btn variant="ghost" onClick={showAll} style={{ padding:"6px 10px", fontSize:10 }}>All teams</Btn>
+              <Btn variant="ghost" onClick={hideAll} style={{ padding:"6px 10px", fontSize:10 }}>Clear</Btn>
+              {focus && <Btn variant="ghost" onClick={() => setFocus(null)} style={{ padding:"6px 10px", fontSize:10 }}>Unpin {focus.split(" ").slice(-1)[0]}</Btn>}
+            </div>
+
+            <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:14 }}>
+              {F1_TEAMS_2026.map(t => {
+                const off = hidden.has(t.name);
+                return (
+                  <button key={t.name} className="bp" onClick={() => toggleTeam(t.name)}
+                    style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 9px", borderRadius:20,
+                      border:`1px solid ${C.border}`, background:off ? "transparent" : "var(--field)",
+                      opacity: off ? .42 : 1, cursor:"pointer", fontFamily:"DM Sans,sans-serif",
+                      fontSize:10, fontWeight:600, letterSpacing:".04em", color:"var(--text)" }}>
+                    <span style={{ width:8, height:8, borderRadius:"50%", background:t.c1 }} />
+                    <span style={{ width:8, height:8, borderRadius:"50%", background:t.c2, marginLeft:-3 }} />
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── Chart ── */}
+            <div style={{ overflowX:"auto", position:"relative" }}>
+              <div style={{ position:"relative", minWidth:640 }}>
+                <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", display:"block" }}>
+                  {/* position gridlines */}
+                  {Array.from({length:22}, (_,k) => k+1).map(p => (
+                    <g key={p}>
+                      <line x1={padL} y1={yAt(p)} x2={W-padR} y2={yAt(p)}
+                        stroke="var(--border)" strokeWidth={p===1?1.2:0.6} opacity={p%5===1?0.9:0.45} />
+                      <text x={padL-7} y={yAt(p)+3.5} textAnchor="end"
+                        style={{ fontSize:9, fill:"var(--muted)", fontFamily:"DM Sans,sans-serif" }}>{p}</text>
+                    </g>
+                  ))}
+                  {/* race column markers */}
+                  {cols.map((r,i) => (
+                    <g key={r.id}>
+                      <line x1={xAt(i)} y1={padT} x2={xAt(i)} y2={H-padB} stroke="var(--border)" strokeWidth={0.6} opacity={0.5} />
+                      <text x={xAt(i)} y={H-padB+15} textAnchor="middle"
+                        style={{ fontSize:10, fontWeight:600, fill:"var(--dim)", fontFamily:"DM Sans,sans-serif" }}>{short(r)}</text>
+                    </g>
+                  ))}
+                  {/* driver traces */}
+                  {visible.map(d => {
+                    const meta = DRIVER_META[d];
+                    const dim  = focus && focus !== d;
+                    return (
+                      <g key={d} opacity={dim ? 0.12 : 1} style={{ transition:"opacity .15s" }}>
+                        {segmentsFor(d).map((seg,si) => (
+                          <polyline key={si} fill="none" stroke={meta.color}
+                            strokeWidth={focus === d ? 3.4 : 2}
+                            strokeLinejoin="round" strokeLinecap="round"
+                            points={seg.map(pt => `${pt.x},${pt.y}`).join(" ")} />
+                        ))}
+                        {segmentsFor(d).flat().map((pt,pi) => (
+                          <circle key={pi} cx={pt.x} cy={pt.y} r={focus === d ? 5 : 3.4}
+                            fill={meta.color} stroke="var(--card)" strokeWidth={1.2}
+                            style={{ cursor:"pointer" }}
+                            onMouseEnter={() => setHover({ d, pos:pt.pos, race:pt.race, x:pt.x, y:pt.y })}
+                            onMouseLeave={() => setHover(null)}
+                            onClick={() => setFocus(f => f === d ? null : d)} />
+                        ))}
+                      </g>
+                    );
+                  })}
+                </svg>
+                {hover && (
+                  <div style={{ position:"absolute", left:`${(hover.x/W)*100}%`, top:`${(hover.y/H)*100}%`,
+                    transform:"translate(-50%, -125%)", pointerEvents:"none", zIndex:5,
+                    background:"var(--card)", border:`1px solid ${C.border2 || C.border}`, borderRadius:9,
+                    padding:"7px 10px", boxShadow:"0 8px 22px rgba(0,0,0,.16)", whiteSpace:"nowrap" }}>
+                    <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:12, color:DRIVER_META[hover.d].color }}>{hover.d}</div>
+                    <div style={{ fontSize:11, color:"var(--text)", fontWeight:600 }}>P{hover.pos} · {hover.race.flag} {hover.race.location}</div>
+                    <div style={{ fontSize:10, color:C.muted }}>{DRIVER_META[hover.d].team}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* ── Driver legend / season summary ── */}
+          <Card>
+            <ST color={C.teal}>Drivers — {cols.length} race{cols.length===1?"":"s"} on record</ST>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(168px, 1fr))", gap:4 }}>
+              {ROSTER_2026.map(d => {
+                const meta = DRIVER_META[d];
+                const off  = hidden.has(meta.team);
+                const s    = summary(d);
+                return (
+                  <button key={d} className="bp" onClick={() => setFocus(f => f === d ? null : d)}
+                    style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 9px", borderRadius:9,
+                      border:`1px solid ${focus===d ? meta.color : "transparent"}`,
+                      background: focus===d ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent",
+                      opacity: off ? .35 : 1, cursor:"pointer", textAlign:"left", width:"100%" }}>
+                    <span style={{ width:11, height:3, borderRadius:2, background:meta.color, flexShrink:0 }} />
+                    <span style={{ flex:1, minWidth:0 }}>
+                      <span style={{ display:"block", fontSize:12.5, fontWeight:600, color:"var(--text)", overflow:"hidden", textOverflow:"ellipsis" }}>{d}</span>
+                      <span style={{ display:"block", fontSize:9.5, color:C.muted }}>
+                        {s.best ? `Best P${s.best} · ${s.fin}/${s.of} finished` : "No finishes"}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // ── Root ──────────────────────────────────────────────────────────────────────
+
+    function App() {
+      const [data,      setData]      = useState(null);
+      const [tab,       setTab]       = useState("standings");
+      const [team,      setTeam]      = useState(() => nextTeam(null));
+      const [loaded,    setLoaded]    = useState(false);
+      const [toast,     setToast]     = useState("");
+      const [latestMsg, setLatestMsg] = useState(null);
+      const [menuOpen,  setMenuOpen]  = useState(false);
+      const [dbOk,      setDbOk]      = useState(true);
+      const toastTimer = useRef(null);
+      const bottomEmailFiredRef   = useRef(null);
+      const everyoneEmailFiredRef = useRef(null);
+
+      useEffect(() => {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        loadData().then(d => { setData(d); setDbOk(dataIsOk()); setLoaded(true); });
+        const unsub = subscribeData(d => setData(d));
+        const unsubChat = subscribeChat(msgs => setLatestMsg(msgs.length ? msgs[msgs.length-1] : null));
+        return () => { unsub(); unsubChat(); };
+      }, []);
+
+      // Rotating team palette: applied on load, re-rolled on every tab switch.
+      // nextTeam() never returns the palette that's currently showing, so each
+      // change is visible.
+      useEffect(() => { applyTeam(team.id); }, [team]);
+
+      function changeTab(id) {
+        if (id !== tab) setTeam(t => nextTeam(t.id));
+        setTab(id);
+        setMenuOpen(false);
+      }
+
+      useEffect(() => {
+        if (!menuOpen) return;
+        const onKey = e => { if (e.key === "Escape") setMenuOpen(false); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+      }, [menuOpen]);
+
+      const update = useCallback(async (newData) => {
+        setData(newData);
+        await saveData(newData);
+      }, []);
+
+      // Second-pick reminder emails — TWO separate moments, deliberately mirroring
+      // the exact eligibility check the pick screen itself uses (line ~946:
+      // everyoneIn || bottomIds.has(p.id)). Previously this was a single trigger
+      // keyed only on "has the window opened at all", which emailed every player
+      // the moment the bottom group's early window opened — including players who
+      // the pick screen correctly still locked out. Splitting it in two closes
+      // that mismatch structurally instead of patching the symptom.
+      //
+      // Non-staggered races (first two of the season) have no bottom group —
+      // secondPickGroups returns an empty bottomIds — so everyoneIn is true from
+      // the moment the window opens and this collapses to one email, one flag,
+      // sent to everyone, same as before the split.
+      useEffect(() => {
+        if (!data) return;
+        if (!dataIsOk()) return;
+        const next = data.races.find(r => r.status !== "completed");
+        if (!next) return;
+        if (new Date(next.date + "T23:59:59") < new Date()) return;
+        if (EMAILJS_PUBLIC_KEY === "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE") return;
+
+        const { bottomIds, staggered } = secondPickGroups(data.players, data.races);
+        const windowStart     = secondPickStart(next);
+        const everyoneTime    = secondPickEveryoneTime(next);
+        const bottomAllPicked = staggered && bottomIds.size > 0 && [...bottomIds].every(id => (next.picks2 || {})[id]);
+        const everyoneIn      = !staggered || new Date() >= everyoneTime || bottomAllPicked;
+
+        const bottomDue   = new Date() >= windowStart && !next._bottomPickEmailSent
+                             && bottomEmailFiredRef.current !== next.id;
+        const everyoneDue = staggered && everyoneIn && !next._everyonePickEmailSent
+                             && everyoneEmailFiredRef.current !== next.id;
+        if (!bottomDue && !everyoneDue) return;
+
+        (async () => {
+          if (bottomDue) {
+            bottomEmailFiredRef.current = next.id;
+            const recipients = staggered ? data.players.filter(p => bottomIds.has(p.id)) : data.players;
+            const flagPatch = staggered ? { _bottomPickEmailSent: true } : { _bottomPickEmailSent: true, _everyonePickEmailSent: true };
+            const races = data.races.map(r => r.id === next.id ? { ...r, ...flagPatch } : r);
+            await saveData({ ...data, races });
+            await sendSecondPickEmails(recipients, next);
+          }
+          if (everyoneDue) {
+            everyoneEmailFiredRef.current = next.id;
+            const recipients = data.players.filter(p => !bottomIds.has(p.id));
+            const races = data.races.map(r => r.id === next.id ? { ...r, _everyonePickEmailSent: true } : r);
+            await saveData({ ...data, races });
+            await sendSecondPickEmails(recipients, next);
+          }
+        })();
+      }, [data]);
+
+      async function sendSecondPickEmails(recipients, next) {
+        for (const p of recipients) {
+          if (!p.email) continue;
+          try {
+            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+              to_email: p.email,
+              to_name: p.name,
+              race_name: next.name,
+              race_date: fmtShort(next.date),
+              pick_pos: "2nd driver window open",
+              taken: Object.values(next.picks2||{}).join(", ") || "None yet",
+              app_url: window.location.href,
+            }, EMAILJS_PUBLIC_KEY);
+          } catch(e) { console.error("2nd-pick email error:", e); }
+        }
+      }
+
+      function showToast(msg) {
+        setToast(msg);
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setToast(""), 3500);
+      }
+
+      // Sync the roster registries with league state. Deliberately done here in the
+      // render body, not in an effect: children render after App returns, so they
+      // always see the current roster. rebuildRoster() is idempotent and no-ops
+      // when nothing changed, so calling it every render is cheap and safe.
+      rebuildRoster(data && data.customDrivers, data && data.inactiveDrivers);
+
+      if (!loaded) return (
+        <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:24, color:C.red, letterSpacing:".2em" }}>LOADING...</div>
+        </div>
+      );
+
+      const TABS = [["standings","🏆","Standings"],["race","🏁","Pick Driver"],["calendar","📅","Calendar"],["research","🔬","Driver Research"],["chat","💬","Chat"],["admin","⚙️","Admin"]];
+
+      return (
+        <>
+          {toast && (
+            <div style={{ position:"fixed", top:14, right:14, zIndex:999, background:"var(--surface2)", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 15px", fontFamily:"DM Sans,sans-serif", fontSize:13, color:"var(--text)", boxShadow:"0 8px 28px rgba(0,0,0,.18)", maxWidth:270 }}>
+              {toast}
+            </div>
+          )}
+          <div style={{ minHeight:"100vh", background:C.bg, color:"var(--text)" }}>
+            {!dbOk && (
+              <div style={{ background:"color-mix(in srgb, var(--danger) 12%, #fff)", borderBottom:`2px solid ${C.danger}`, padding:"10px 16px", position:"sticky", top:0, zIndex:120 }}>
+                <div style={{ maxWidth:680, margin:"0 auto", fontSize:12.5, color:C.danger, fontWeight:600, lineHeight:1.55 }}>
+                  ⚠ Read-only — not connected to your league data. Showing placeholder values, and
+                  nothing you do here will be saved. Don't enter picks or results until this clears.
+                </div>
+              </div>
+            )}
+            <div style={{ background:"color-mix(in srgb, var(--card) 92%, transparent)", backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
+              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", height:56 }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:9 }}>
+                  <span style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:21, color:C.red, letterSpacing:"-.02em" }}>F1</span>
+                  <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:17, letterSpacing:"-.01em" }}>FANTASY</span>
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.dim, fontWeight:400, letterSpacing:".12em", textTransform:"uppercase" }}>2026</span>
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:9, color:C.red, fontWeight:600, letterSpacing:".14em", textTransform:"uppercase", paddingLeft:2 }}>{team.name}</span>
+                </div>
+                <div style={{ position:"relative" }}>
+                  <button
+                    className={`menu-btn${menuOpen ? " open" : ""}`}
+                    onClick={() => setMenuOpen(o => !o)}
+                    aria-label="Open menu"
+                    aria-expanded={menuOpen}
+                  >
+                    <span></span><span></span><span></span>
+                  </button>
+                  {menuOpen && (
+                    <>
+                      <div className="menu-overlay" onClick={() => setMenuOpen(false)} />
+                      <div className="menu-panel">
+                        {TABS.map(([id,icon,label]) => (
+                          <button
+                            key={id}
+                            className={`menu-item${tab===id ? " active" : ""}`}
+                            onClick={() => changeTab(id)}
+                          >
+                            <span className="ico">{icon}</span>{label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
+              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} />}
+              {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} />}
+              {tab==="calendar"  && <CalendarTab  data={data} />}
+              {tab==="research"  && <ResearchTab  data={data} />}
+              {tab==="chat"      && <ChatTab      players={data.players} />}
+              {tab==="admin"     && <AdminTab     data={data} update={update} showToast={showToast} />}
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
