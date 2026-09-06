@@ -552,8 +552,12 @@
           ...p,
           _totalPts: completedTotal(p, races),
           _history: completedRaces.map(r => {
-            const pts = r.points?.[p.id];
-            return pts ? (pts.s||0)+(pts.r||0) : 0;
+            // Must match lastRacePts/completedTotal and count BOTH drivers. Using
+            // first-driver points only made the primary sort ("worst last race
+            // picks first") disagree with the standings players actually see.
+            const pts  = r.points?.[p.id];
+            const pts2 = r.points2?.[p.id];
+            return (pts ? (pts.s||0)+(pts.r||0) : 0) + (pts2 ? (pts2.s||0)+(pts2.r||0) : 0);
           }),
         }))
         .sort((a, b) => {
@@ -605,6 +609,9 @@
 
     // ── UI Primitives ────────────────────────────────────────────────────────────
 
+    // Chevron for native <select>s styled with appearance:none.
+    const CHEV = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E\")";
+
     const Card = ({ children, style={}, className="" }) => (
       <div className={className} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:14, ...style }}>
         {children}
@@ -641,6 +648,9 @@
     // ── Standings ────────────────────────────────────────────────────────────────
 
         function StandingsTab({ data, latestMsg, setTab }) {
+      const [replyWho,  setReplyWho]  = useState("");
+      const [replyText, setReplyText] = useState("");
+      const [replying,  setReplying]  = useState(false);
       const ranked = standings(data.players, data.races);
       const order  = pickOrder(data.players, data.races);
       const next   = data.races.find(r => r.status !== "completed");
@@ -649,6 +659,18 @@
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
       const PC = { lewis:"var(--teal)", zayd:"var(--orange)", toth:"var(--accent)", mcmichael:"var(--gold)", hattner:"#7A3FD1", yogesh:"var(--green)" };
+
+      // Post straight from the home page. Same collection and shape as the Chat
+      // tab, so the message appears identically in both — the live subscription in
+      // App() pushes it straight back down as the new latestMsg.
+      async function sendReply() {
+        if (!replyWho || !replyText.trim() || replying) return;
+        setReplying(true);
+        const name = data.players.find(p => p.id === replyWho)?.name || replyWho;
+        await postMessage(replyWho, name, replyText.trim());
+        setReplyText("");
+        setReplying(false);
+      }
 
       function msgTimeAgo(ts) {
         if (!ts) return "";
@@ -684,8 +706,14 @@
           <Card>
             <ST>Championship Standings</ST>
             {ranked.map((p,i) => {
-              const lp = last?.points?.[p.id];
-              const lpts = lp ? (lp.s||0)+(lp.r||0) : null;
+              // Must include points2 — the season total below counts both drivers,
+              // so omitting the 2nd driver here made the two disagree (e.g. Italy
+              // showed "+25" while the total correctly moved by 29).
+              const lp  = last?.points?.[p.id];
+              const lp2 = last?.points2?.[p.id];
+              const lpts = (lp || lp2)
+                ? (lp ? (lp.s||0)+(lp.r||0) : 0) + (lp2 ? (lp2.s||0)+(lp2.r||0) : 0)
+                : null;
               return (
                 <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:i<ranked.length-1?`1px solid ${C.border}`:"none" }}>
                   <div className={rc(i)} style={{ width:28, fontSize:i<3?17:12, textAlign:"center", fontFamily:"Syne,sans-serif", fontWeight:800 }}>{ri(i)}</div>
@@ -742,14 +770,16 @@
                     🏁 Sprint Results In — GP Pending
                   </div>
                   {[...data.players]
-                    .map(p => ({ ...p, sPts: next.points?.[p.id]?.s || 0, driver: next.picks?.[p.id] }))
+                    .map(p => ({ ...p,
+                      sPts: (next.points?.[p.id]?.s || 0) + (next.points2?.[p.id]?.s || 0),
+                      driver: next.picks?.[p.id], driver2: next.picks2?.[p.id] }))
                     .filter(p => p.driver)
                     .sort((a,b) => b.sPts - a.sPts)
                     .map((p,i,arr) => (
                       <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:i<arr.length-1?`1px solid color-mix(in srgb, var(--orange) 12%, transparent)`:"none" }}>
                         <div style={{ flex:1, fontSize:13 }}>
                           <span style={{ fontWeight:600 }}>{p.name}</span>
-                          <span style={{ color:C.dim, marginLeft:6, fontSize:11 }}>{p.driver}</span>
+                          <span style={{ color:C.dim, marginLeft:6, fontSize:11 }}>{p.driver}{p.driver2 && <span style={{ color:C.gold }}> + {p.driver2}</span>}</span>
                         </div>
                         <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:14, color:p.sPts>0?C.orange:C.dim }}>+{p.sPts}</div>
                       </div>
@@ -780,6 +810,32 @@
                       <span style={{ fontSize:10, color:C.dim }}>{msgTimeAgo(latestMsg.ts)}</span>
                     </div>
                     <div style={{ fontSize:14, color:"var(--text)", lineHeight:1.5, background:"var(--surface2)", borderRadius:"0 10px 10px 10px", padding:"9px 13px" }}>{latestMsg.text}</div>
+                  </div>
+                </div>
+
+                {/* Inline reply — saves a trip to the Chat tab */}
+                <div style={{ marginTop:14, paddingTop:13, borderTop:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:7 }}>
+                  <select
+                    value={replyWho}
+                    onChange={e => setReplyWho(e.target.value)}
+                    style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"7px 11px", fontSize:12, fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:CHEV, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 10px) center" }}
+                  >
+                    <option value="">Reply as...</option>
+                    {data.players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <div style={{ display:"flex", gap:7 }}>
+                    <input
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && sendReply()}
+                      placeholder={replyWho ? "Write a reply..." : "Pick who you are first"}
+                      disabled={!replyWho}
+                      style={{ flex:1, background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"8px 12px", fontSize:13, fontFamily:"DM Sans,sans-serif", opacity: replyWho ? 1 : .55 }}
+                    />
+                    <button className="bp" onClick={sendReply} disabled={replying || !replyWho || !replyText.trim()}
+                      style={{ background:C.teal, color:"#fff", border:"none", borderRadius:9, padding:"8px 15px", fontFamily:"DM Sans,sans-serif", fontSize:11, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", cursor:"pointer", opacity:(replying || !replyWho || !replyText.trim()) ? .4 : 1, flexShrink:0 }}>
+                      {replying ? "..." : "Send"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1294,7 +1350,7 @@
       const [newPin, setNewPin] = useState("");
       const [raceId, setRaceId] = useState("");
       const [sprintOrd, setSprintOrd] = useState(Array(8).fill(""));
-      const [raceOrd,   setRaceOrd]   = useState(Array(10).fill(""));
+      const [raceOrd,   setRaceOrd]   = useState(Array(22).fill(""));
       const [emails, setEmails] = useState(() => { const e={}; data.players.forEach(p => { e[p.id]=p.email||""; }); return e; });
       const [preview, setPreview] = useState(null);
       const [drRaceId, setDrRaceId] = useState("");
@@ -1354,6 +1410,14 @@
       }
 
       // Save GP results and finalize the race — calculates full points, marks complete
+      // Drivers still selectable for slot i: everyone not already placed in some
+      // OTHER slot. The current slot's own value stays listed so it renders as the
+      // selected option and can be re-picked without clearing it first.
+      function availableFor(ord, i) {
+        const used = new Set(ord.filter((d, j) => d && j !== i));
+        return ROSTER_2026.filter(d => !used.has(d));
+      }
+
       function saveResults() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
         const pts  = {};
@@ -1387,33 +1451,54 @@
           }
         });
         const isAlreadyCompleted = selRace.status === "completed";
-        update({ ...data, races: data.races.map(r => r.id===raceId ? {
-          ...r,
-          status: "completed",
-          points: pts,
-          points2: pts2,
-          _sprintSaved: false,
-          ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
-        } : r) });
-        showToast("Race finalized & points saved ✅");
-        setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
+
+        // One entry, both outcomes. The full order is stored on the race as the
+        // source of truth (so reopening doesn't have to reverse-engineer it from
+        // points), and the same order populates the research chart.
+        const gpOrder = [...raceOrd];
+        const placed  = gpOrder.filter(Boolean).length;
+        const nextDriverResults = { ...(data.driverResults || SEED_DRIVER_RESULTS) };
+        if (placed > 0) {
+          const map = {};
+          gpOrder.forEach((d, i) => { if (d) map[d] = i + 1; });
+          nextDriverResults[raceId] = map;
+        }
+
+        update({
+          ...data,
+          driverResults: nextDriverResults,
+          races: data.races.map(r => r.id===raceId ? {
+            ...r,
+            status: "completed",
+            points: pts,
+            points2: pts2,
+            gpOrder,
+            _sprintSaved: false,
+            ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
+          } : r)
+        });
+        showToast(placed > 0
+          ? `Race finalized · ${placed} finishers charted ✅`
+          : "Race finalized & points saved ✅");
+        setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(22).fill(""));
       }
 
       // Clear a race's results/points but KEEP everyone's picks
       function clearResults() {
         if (!raceId || !selRace) { showToast("Select a race first"); return; }
-        const msg = `Clear all results for ${selRace.name}?\n\nThis wipes the points and moves it back to open picking, but KEEPS everyone's driver picks. Standings and pick order will recalculate.`;
+        const msg = `Clear all results for ${selRace.name}?\n\nThis wipes the points and moves it back to open picking, but KEEPS everyone's driver picks. Standings and pick order will recalculate.\n\nThe Driver Research chart entry for this race is kept — remove it separately under Driver Data if you want it gone too.`;
         if (!window.confirm(msg)) return;
         update({ ...data, races: data.races.map(r => r.id===raceId ? {
           ...r,
           points: {},
           points2: {},
+          gpOrder: [],
           status: "picks_open",
           _sprintSaved: false,
           _pointsEdited: false,
         } : r) });
         showToast("Results cleared — picks kept ✅");
-        setSprintOrd(Array(8).fill("")); setRaceOrd(Array(10).fill(""));
+        setSprintOrd(Array(8).fill("")); setRaceOrd(Array(22).fill(""));
       }
 
       function saveEmails() {
@@ -1537,22 +1622,46 @@
                 <Sel value={raceId} onChange={e => {
                   setRaceId(e.target.value);
                   const r = data.races.find(x => x.id === e.target.value);
-                  // Reconstruct sprint + GP order from saved points if available.
-                  // Must walk BOTH picks and picks2 — a slot filled only by someone's
-                  // second driver would otherwise come back blank, and re-saving would
-                  // silently zero that driver's points.
                   const sO = Array(8).fill("");
-                  const rO = Array(10).fill("");
-                  const rebuild = (picksMap, pointsMap) => {
+                  let   rO = Array(22).fill("");
+
+                  // Sprint order still has to be reconstructed from points — it isn't
+                  // stored anywhere. Walk BOTH picks and picks2: a slot filled only by
+                  // someone's second driver would otherwise come back blank, and
+                  // re-saving would silently zero that driver's points.
+                  const rebuildSprint = (picksMap, pointsMap) => {
                     if (!picksMap || !pointsMap) return;
                     Object.entries(picksMap).forEach(([pid, drv]) => {
                       const pt = pointsMap[pid];
                       if (pt?.s > 0) { const idx = SPR_PTS.indexOf(pt.s); if (idx >= 0 && !sO[idx]) sO[idx] = drv; }
-                      if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r);  if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
                     });
                   };
-                  rebuild(r?.picks,  r?.points);
-                  rebuild(r?.picks2, r?.points2);
+                  rebuildSprint(r?.picks,  r?.points);
+                  rebuildSprint(r?.picks2, r?.points2);
+
+                  // GP order, best source first:
+                  //  1. r.gpOrder — the actual order that was entered. Source of truth.
+                  //  2. driverResults — full field, entered via the research paste box.
+                  //  3. Legacy: reverse-engineer the top 10 from saved points. Only
+                  //     recovers positions held by someone's pick; everything else
+                  //     comes back blank, which is why 1 and 2 are preferred.
+                  if (Array.isArray(r?.gpOrder) && r.gpOrder.length) {
+                    rO = Array(22).fill("").map((_, i) => r.gpOrder[i] || "");
+                  } else if (data.driverResults?.[r?.id]) {
+                    Object.entries(data.driverResults[r.id]).forEach(([drv, pos]) => {
+                      if (pos >= 1 && pos <= 22) rO[pos - 1] = drv;
+                    });
+                  } else {
+                    const rebuildGp = (picksMap, pointsMap) => {
+                      if (!picksMap || !pointsMap) return;
+                      Object.entries(picksMap).forEach(([pid, drv]) => {
+                        const pt = pointsMap[pid];
+                        if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r); if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
+                      });
+                    };
+                    rebuildGp(r?.picks,  r?.points);
+                    rebuildGp(r?.picks2, r?.points2);
+                  }
                   setSprintOrd(sO); setRaceOrd(rO);
                 }}>
                   <option value="">Choose a race...</option>
@@ -1580,7 +1689,7 @@
                           <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Syne,sans-serif", flexShrink:0 }}>{i+1}.</div>
                           <Sel value={sprintOrd[i]} onChange={e => { const o=[...sprintOrd]; o[i]=e.target.value; setSprintOrd(o); }}>
                             <option value="">—</option>
-                            {ROSTER_2026.map(d => <option key={d} value={d}>{d}</option>)}
+                            {availableFor(sprintOrd, i).map(d => <option key={d} value={d}>{d}</option>)}
                           </Sel>
                         </div>
                       ))}
@@ -1588,17 +1697,32 @@
                   </div>
                 )}
                 <div style={{ marginBottom:16 }}>
-                  <ST>Race Order (Top 10)</ST>
+                  <ST>Race Order (Full Field)</ST>
+                  <div style={{ fontSize:11.5, color:C.dim, lineHeight:1.65, marginBottom:10 }}>
+                    Enter as far down as you like — each driver you pick drops out of the
+                    remaining dropdowns, so the list gets shorter as you go. The top 10 score
+                    league points; the rest feed the Driver Research chart. Leave retirements
+                    blank and their chart line will break at this race.
+                  </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
-                    {Array(10).fill(0).map((_,i) => (
-                      <div key={i} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <div style={{ width:16, fontSize:10, color:C.dim, fontFamily:"Syne,sans-serif", flexShrink:0 }}>{i+1}.</div>
-                        <Sel value={raceOrd[i]} onChange={e => { const o=[...raceOrd]; o[i]=e.target.value; setRaceOrd(o); }}>
-                          <option value="">—</option>
-                          {ROSTER_2026.map(d => <option key={d} value={d}>{d}</option>)}
-                        </Sel>
-                      </div>
-                    ))}
+                    {Array(22).fill(0).map((_,i) => {
+                      const scoring = i < 10;
+                      return (
+                        <div key={i} style={{ display:"flex", alignItems:"center", gap:5 }}>
+                          <div style={{ width:20, fontSize:10, flexShrink:0, fontFamily:"Syne,sans-serif",
+                            color: scoring ? C.gold : C.muted, fontWeight: scoring ? 700 : 400 }}>{i+1}.</div>
+                          <Sel value={raceOrd[i]} onChange={e => { const o=[...raceOrd]; o[i]=e.target.value; setRaceOrd(o); }}>
+                            <option value="">—</option>
+                            {availableFor(raceOrd, i).map(d => <option key={d} value={d}>{d}</option>)}
+                          </Sel>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize:11, color:C.muted, marginTop:8 }}>
+                    {raceOrd.filter(Boolean).length} of {ROSTER_2026.length} placed
+                    {raceOrd.slice(0,10).filter(Boolean).length < 10 && raceOrd.filter(Boolean).length > 0 &&
+                      <span style={{ color:C.orange }}> · top 10 not yet complete</span>}
                   </div>
                 </div>
                 {selRace.hasSprint && selRace.status !== "completed" ? (
@@ -1885,10 +2009,12 @@
             <Card>
               <ST color={C.teal}>🔬 Driver Research Data</ST>
               <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:14 }}>
-                Feeds the Research tab only — this does not touch league picks, points or standings.
-                Paste the full finishing order, one driver per line, winner first. Numbering like
-                “1. Lando Norris” is fine, and last names alone work. Leave out anyone who
-                retired — their line will break at this race.
+                <strong>You usually don't need this.</strong> Entering a race's finishing order under
+                📊 Results now updates the chart automatically. Use this for fixing an old race,
+                backfilling one entered before that change, or pasting an order rather than
+                using dropdowns. It never touches league picks, points or standings.
+                One driver per line, winner first — “1. Lando Norris” is fine, and last names
+                alone work. Leave out retirements; their line will break at this race.
               </div>
 
               <div style={{ marginBottom:12 }}>
