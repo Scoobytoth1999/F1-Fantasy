@@ -1792,8 +1792,12 @@
                     <div style={{ fontSize:11, color:C.dim }}>{r.date} · {Object.keys(r.picks||{}).length}/6 picked · <span style={{ color:r.status==="picks_open"?C.green:r.status==="locked"?C.red:C.muted }}>{r.status}</span></div>
                   </div>
                   <div style={{ display:"flex", gap:5, flexShrink:0 }}>
-                    {r.status==="upcoming" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"picks_open"}:x)})} style={{ fontSize:9, padding:"5px 9px" }}>Open</Btn>}
-                    {r.status!=="locked"   && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"locked"}:x)})}     style={{ fontSize:9, padding:"5px 9px" }}>Lock</Btn>}
+                    {/* "Open" must be available from locked as well as upcoming.
+                        Previously a locked race showed no buttons at all, leaving
+                        no way to unlock it once you'd locked it. */}
+                    {r.status!=="picks_open" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"picks_open"}:x)})} style={{ fontSize:9, padding:"5px 9px", color:C.green }}>{r.status==="locked" ? "Unlock" : "Open"}</Btn>}
+                    {r.status!=="locked"     && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"locked"}:x)})}     style={{ fontSize:9, padding:"5px 9px" }}>Lock</Btn>}
+                    {r.status==="picks_open" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"upcoming"}:x)})}  style={{ fontSize:9, padding:"5px 9px", color:C.muted }}>Close</Btn>}
                   </div>
                 </div>
               ))}
