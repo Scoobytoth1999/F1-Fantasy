@@ -318,6 +318,94 @@
       return hit.length === 1 ? hit[0] : null;
     }
 
+    // ── Official results ────────────────────────────────────────────────────────
+    // A GitHub Action (.github/workflows/results.yml) pulls the official sprint and
+    // GP classifications from Jolpica-F1 on race weekends and commits them to the
+    // repo as results-2026.json. The app only READS that file. Nothing in this
+    // section writes to Firestore — results still go in through the normal Save
+    // buttons in Admin → Results, after the admin has looked at them.
+    const OFFICIAL_URLS = [
+      "https://raw.githubusercontent.com/Scoobytoth1999/F1-Fantasy/main/results-2026.json",
+      "results-2026.json",   // same-origin fallback (the Pages copy)
+    ];
+    async function loadOfficialResults() {
+      for (const base of OFFICIAL_URLS) {
+        try {
+          const res = await fetch(`${base}?t=${Date.now()}`, { cache:"no-store" });
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (json && json.races) return json;
+        } catch(e) { /* try the next source */ }
+      }
+      console.warn("Official results file unavailable — manual entry only.");
+      return null;
+    }
+
+    // Match a league race to its official round by DATE (±1 day), never by name:
+    // the league calendar's names ("Bahrain Grand Prix (Malaysia)") don't always
+    // match the official ones.
+    function officialFor(race, official) {
+      if (!race || !official || !official.races) return null;
+      const t = new Date(race.date + "T12:00:00Z").getTime();
+      return Object.values(official.races).find(o =>
+        o && o.date && Math.abs(new Date(o.date + "T12:00:00Z").getTime() - t) <= 36 * 3600000
+      ) || null;
+    }
+
+    // Official classification → slot array (index = position - 1). Only classified
+    // finishers get a slot; DNF/DNS/DSQ stay blank, the same as manual entry.
+    // Names go through matchDriver, so accents and full names ("Andrea Kimi
+    // Antonelli", "Nico Hülkenberg") resolve to the league roster.
+    function officialOrder(rows, slots) {
+      const order = Array(slots).fill("");
+      const unmatched = [];
+      (rows || []).forEach(r => {
+        if (!r || !r.classified || !r.pos || r.pos > slots) return;
+        // Official names can carry extra given names ("Andrea Kimi Antonelli");
+        // fall back to the surname, which matchDriver resolves on its own.
+        const d = matchDriver(r.name) || matchDriver(String(r.name || "").split(" ").slice(-1)[0]);
+        if (d && !order.includes(d)) order[r.pos - 1] = d;
+        else unmatched.push({ pos:r.pos, name:r.name });
+      });
+      return { order, unmatched };
+    }
+
+    const ptsSum = p => p ? (p.s||0) + (p.r||0) : 0;
+
+    // Would the official results change anyone's points for this race? Compares
+    // what's saved against what the official order would score. Only a points
+    // difference raises a flag — chart-only differences (P15 vs P16) don't.
+    function officialPointsDiff(race, official, players) {
+      const o = officialFor(race, official);
+      if (!o || !o.gp || !o.gp.length) return null;
+      if (race.hasSprint && !(o.sprint && o.sprint.length)) return null;
+      const sp = officialOrder(o.sprint, 8).order;
+      const gp = officialOrder(o.gp, 22).order;
+      const score = drv => {
+        if (!drv) return 0;
+        const si = race.hasSprint ? sp.indexOf(drv) : -1;
+        const gi = gp.indexOf(drv);
+        return (si >= 0 && si < 8 ? SPR_PTS[si] : 0) + (gi >= 0 && gi < 10 ? GP_PTS[gi] : 0);
+      };
+      const changes = [];
+      players.forEach(p => {
+        const was = ptsSum(race.points?.[p.id]) + ptsSum(race.points2?.[p.id]);
+        const now = score(race.picks?.[p.id]) + score(race.picks2?.[p.id]);
+        if (was !== now) changes.push({ id:p.id, name:p.name, was, now });
+      });
+      // Signature of the official scoring positions, so "Keep mine" can silence
+      // this exact version — a LATER official change will flag again.
+      return { changes, signature: JSON.stringify([sp, gp.slice(0, 10)]) };
+    }
+
+    function agoText(iso) {
+      if (!iso) return "";
+      const m = (Date.now() - new Date(iso)) / 60000;
+      if (m < 60)   return `${Math.max(1, Math.round(m))}m ago`;
+      if (m < 1440) return `${Math.round(m/60)}h ago`;
+      return `${Math.round(m/1440)}d ago`;
+    }
+
     const ALL_RACES = [
       { id:"aus-2026", name:"Australian Grand Prix",          location:"Melbourne",   flag:"🇦🇺", date:"2026-03-08", hasSprint:false, status:"completed", picks:{}, points:{lewis:{s:0,r:0},zayd:{s:0,r:0},toth:{s:0,r:0},mcmichael:{s:0,r:0}}, noLeague:true },
       { id:"chn-2026", name:"Chinese Grand Prix",             location:"Shanghai",    flag:"🇨🇳", date:"2026-03-15", hasSprint:true,  status:"completed", picks:{lewis:"Charles Leclerc",zayd:"Lando Norris",toth:"Max Verstappen",mcmichael:"Kimi Antonelli"}, points:{lewis:{s:7,r:15},zayd:{s:5,r:0},toth:{s:0,r:0},mcmichael:{s:4,r:25}} },
@@ -1343,7 +1431,7 @@
 
     // ── Admin ─────────────────────────────────────────────────────────────────────
 
-    function AdminTab({ data, update, showToast }) {
+    function AdminTab({ data, update, showToast, official }) {
       const [pin, setPin]   = useState("");
       const [auth, setAuth] = useState(false);
       const [sec, setSec]   = useState("results");
@@ -1360,6 +1448,7 @@
       const [gName, setGName] = useState("");
       const [gTeam, setGTeam] = useState("");
       const [gErr,  setGErr]  = useState("");
+      const [filledFrom, setFilledFrom] = useState("");   // raceId last filled from official data
 
       if (!auth) return (
         <div className="anim">
@@ -1604,6 +1693,95 @@
         }
       }
 
+      // Load a race into the results form, rebuilding whatever order is on record.
+      function selectRace(id) {
+          setRaceId(id);
+          const r = data.races.find(x => x.id === id);
+          const sO = Array(8).fill("");
+          let   rO = Array(22).fill("");
+
+          // Sprint order still has to be reconstructed from points — it isn't
+          // stored anywhere. Walk BOTH picks and picks2: a slot filled only by
+          // someone's second driver would otherwise come back blank, and
+          // re-saving would silently zero that driver's points.
+          const rebuildSprint = (picksMap, pointsMap) => {
+            if (!picksMap || !pointsMap) return;
+            Object.entries(picksMap).forEach(([pid, drv]) => {
+              const pt = pointsMap[pid];
+              if (pt?.s > 0) { const idx = SPR_PTS.indexOf(pt.s); if (idx >= 0 && !sO[idx]) sO[idx] = drv; }
+            });
+          };
+          rebuildSprint(r?.picks,  r?.points);
+          rebuildSprint(r?.picks2, r?.points2);
+
+          // GP order, best source first:
+          //  1. r.gpOrder — the actual order that was entered. Source of truth.
+          //  2. driverResults — full field, entered via the research paste box.
+          //  3. Legacy: reverse-engineer the top 10 from saved points. Only
+          //     recovers positions held by someone's pick; everything else
+          //     comes back blank, which is why 1 and 2 are preferred.
+          if (Array.isArray(r?.gpOrder) && r.gpOrder.length) {
+            rO = Array(22).fill("").map((_, i) => r.gpOrder[i] || "");
+          } else if (data.driverResults?.[r?.id]) {
+            Object.entries(data.driverResults[r.id]).forEach(([drv, pos]) => {
+              if (pos >= 1 && pos <= 22) rO[pos - 1] = drv;
+            });
+          } else {
+            const rebuildGp = (picksMap, pointsMap) => {
+              if (!picksMap || !pointsMap) return;
+              Object.entries(picksMap).forEach(([pid, drv]) => {
+                const pt = pointsMap[pid];
+                if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r); if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
+              });
+            };
+            rebuildGp(r?.picks,  r?.points);
+            rebuildGp(r?.picks2, r?.points2);
+          }
+        setSprintOrd(sO); setRaceOrd(rO);
+        setFilledFrom("");
+      }
+
+      // Fill the form from the official classification. Only fills what's
+      // available: mid-weekend that's just the sprint, so the GP slots are left
+      // alone. Nothing is saved here — the admin reviews, then uses Save.
+      function fillFromOfficial(id) {
+        const race = data.races.find(r => r.id === id);
+        const o = officialFor(race, official);
+        if (!o) { showToast("No official results for this race yet"); return; }
+        if (raceId !== id) selectRace(id);
+        const hasSp = race.hasSprint && o.sprint && o.sprint.length;
+        const hasGp = o.gp && o.gp.length;
+        if (hasSp) setSprintOrd(officialOrder(o.sprint, 8).order);
+        if (hasGp) setRaceOrd(officialOrder(o.gp, 22).order);
+        setFilledFrom(id);
+        showToast(hasGp ? "Filled from official results — review, then save ✅"
+                        : "Sprint filled from official results — review, then save 🏁");
+      }
+
+      function keepMine(id, signature) {
+        update({ ...data, races: data.races.map(r => r.id === id ? { ...r, _officialAck: signature } : r) });
+        showToast("Kept your results — this version won't be flagged again");
+      }
+
+      // Races needing attention: official results ready to enter, or saved
+      // points that disagree with the official classification.
+      const ready = official ? data.races.filter(r => {
+        if (r.noLeague || r._restored || r.status === "completed") return false;
+        const o = officialFor(r, official);
+        if (!o) return false;
+        return (o.gp && o.gp.length) || (r.hasSprint && !r._sprintSaved && o.sprint && o.sprint.length);
+      }) : [];
+      const flagged = official ? data.races
+        .filter(r => r.status === "completed" && !r.noLeague && !r._restored)
+        .map(r => ({ race:r, diff:officialPointsDiff(r, official, data.players) }))
+        .filter(x => x.diff && x.diff.changes.length && x.race._officialAck !== x.diff.signature)
+        : [];
+      const selOfficial = selRace ? officialFor(selRace, official) : null;
+      const selUnmatched = selOfficial ? [
+        ...officialOrder(selOfficial.gp, 22).unmatched.map(u => ({ ...u, where:"GP" })),
+        ...(selRace?.hasSprint ? officialOrder(selOfficial.sprint, 8).unmatched.map(u => ({ ...u, where:"Sprint" })) : []),
+      ] : [];
+
       const SECS = [["results","📊 Results"],["races","🏁 Races"],["picks","✏️ Edit Picks"],["grid","🏎 Grid"],["driverdata","🔬 Driver Data"],["backup","💾 Backup"],["emails","📧 Emails"],["settings","⚙️ Settings"]];
 
       return (
@@ -1614,56 +1792,53 @@
             ))}
           </div>
 
+          {sec==="results" && (ready.length > 0 || flagged.length > 0) && (
+            <Card style={{ borderTop:`3px solid ${C.teal}` }}>
+              <ST color={C.teal}>📡 Official Results{official?.updatedAt ? ` · updated ${agoText(official.updatedAt)}` : ""}</ST>
+              {ready.map(r => {
+                const o = officialFor(r, official);
+                const gpIn = o.gp && o.gp.length;
+                return (
+                  <div key={r.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ fontSize:20 }}>{r.flag}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{r.name}</div>
+                      <div style={{ fontSize:11, color:C.green }}>{gpIn ? "GP results are in" : "Sprint results are in"} — ready to enter</div>
+                    </div>
+                    <Btn onClick={() => fillFromOfficial(r.id)} style={{ background:C.teal, color:"#fff", fontSize:10, padding:"7px 11px" }}>Review</Btn>
+                  </div>
+                );
+              })}
+              {flagged.map(({ race:r, diff }) => (
+                <div key={r.id} style={{ padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ fontSize:20 }}>{r.flag}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{r.name}</div>
+                      <div style={{ fontSize:11, color:C.orange, fontWeight:600 }}>⚠ Official results would change points</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize:12, color:C.dim, margin:"6px 0 8px 30px", lineHeight:1.6 }}>
+                    {diff.changes.map(c => `${c.name} ${c.was} → ${c.now}`).join(" · ")}
+                  </div>
+                  <div style={{ display:"flex", gap:7, marginLeft:30 }}>
+                    <Btn onClick={() => fillFromOfficial(r.id)} style={{ background:C.orange, color:"#fff", fontSize:10, padding:"7px 11px" }}>Review official</Btn>
+                    <Btn variant="ghost" onClick={() => keepMine(r.id, diff.signature)} style={{ fontSize:10, padding:"7px 11px" }}>Keep mine</Btn>
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize:11, color:C.muted, marginTop:10, lineHeight:1.6 }}>
+                Review fills the form below with the official order. Nothing is saved until you press Save.
+              </div>
+            </Card>
+          )}
+
           {sec==="results" && (
             <Card>
               <ST>{selRace?.status === "completed" ? "Edit Race Results" : "Enter Race Results"}</ST>
               <div style={{ marginBottom:12 }}>
                 <Lbl>Select Race</Lbl>
-                <Sel value={raceId} onChange={e => {
-                  setRaceId(e.target.value);
-                  const r = data.races.find(x => x.id === e.target.value);
-                  const sO = Array(8).fill("");
-                  let   rO = Array(22).fill("");
-
-                  // Sprint order still has to be reconstructed from points — it isn't
-                  // stored anywhere. Walk BOTH picks and picks2: a slot filled only by
-                  // someone's second driver would otherwise come back blank, and
-                  // re-saving would silently zero that driver's points.
-                  const rebuildSprint = (picksMap, pointsMap) => {
-                    if (!picksMap || !pointsMap) return;
-                    Object.entries(picksMap).forEach(([pid, drv]) => {
-                      const pt = pointsMap[pid];
-                      if (pt?.s > 0) { const idx = SPR_PTS.indexOf(pt.s); if (idx >= 0 && !sO[idx]) sO[idx] = drv; }
-                    });
-                  };
-                  rebuildSprint(r?.picks,  r?.points);
-                  rebuildSprint(r?.picks2, r?.points2);
-
-                  // GP order, best source first:
-                  //  1. r.gpOrder — the actual order that was entered. Source of truth.
-                  //  2. driverResults — full field, entered via the research paste box.
-                  //  3. Legacy: reverse-engineer the top 10 from saved points. Only
-                  //     recovers positions held by someone's pick; everything else
-                  //     comes back blank, which is why 1 and 2 are preferred.
-                  if (Array.isArray(r?.gpOrder) && r.gpOrder.length) {
-                    rO = Array(22).fill("").map((_, i) => r.gpOrder[i] || "");
-                  } else if (data.driverResults?.[r?.id]) {
-                    Object.entries(data.driverResults[r.id]).forEach(([drv, pos]) => {
-                      if (pos >= 1 && pos <= 22) rO[pos - 1] = drv;
-                    });
-                  } else {
-                    const rebuildGp = (picksMap, pointsMap) => {
-                      if (!picksMap || !pointsMap) return;
-                      Object.entries(picksMap).forEach(([pid, drv]) => {
-                        const pt = pointsMap[pid];
-                        if (pt?.r > 0) { const idx = GP_PTS.indexOf(pt.r); if (idx >= 0 && !rO[idx]) rO[idx] = drv; }
-                      });
-                    };
-                    rebuildGp(r?.picks,  r?.points);
-                    rebuildGp(r?.picks2, r?.points2);
-                  }
-                  setSprintOrd(sO); setRaceOrd(rO);
-                }}>
+                <Sel value={raceId} onChange={e => selectRace(e.target.value)}>
                   <option value="">Choose a race...</option>
                   {completed.length > 0 && <option disabled>── Completed ──</option>}
                   {completed.map(r => <option key={r.id} value={r.id}>{r.flag} {r.name} ✓</option>)}
@@ -1680,6 +1855,31 @@
                 <div style={{ fontSize:12, color:C.dim, marginBottom:14, padding:"9px 11px", background:"var(--surface2)", borderRadius:8 }}>
                   Picks: {Object.entries(selRace.picks||{}).map(([id,drv]) => `${data.players.find(p=>p.id===id)?.name} → ${drv}`).join(" · ") || "No picks yet"}
                 </div>
+                {selOfficial && (
+                  <div style={{ marginBottom:14, padding:"10px 12px", borderRadius:9,
+                    background:`color-mix(in srgb, ${filledFrom === raceId ? "var(--green)" : "var(--teal)"} 9%, transparent)`,
+                    border:`1px solid color-mix(in srgb, ${filledFrom === raceId ? "var(--green)" : "var(--teal)"} 28%, transparent)` }}>
+                    {filledFrom === raceId ? (
+                      <div style={{ fontSize:12, color:C.green, fontWeight:600 }}>
+                        ✓ Filled from official results. Check the order below, then save.
+                      </div>
+                    ) : (
+                      <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                        <div style={{ flex:1, fontSize:12, color:C.teal, fontWeight:600, minWidth:160 }}>
+                          📡 Official {selOfficial.gp?.length ? (selRace.hasSprint && selOfficial.sprint?.length ? "sprint + GP" : "GP") : "sprint"} results available
+                        </div>
+                        <Btn onClick={() => fillFromOfficial(raceId)} style={{ background:C.teal, color:"#fff", fontSize:10, padding:"7px 11px" }}>Fill from official</Btn>
+                      </div>
+                    )}
+                    {selUnmatched.length > 0 && (
+                      <div style={{ fontSize:11.5, color:C.danger, marginTop:8, lineHeight:1.6 }}>
+                        ⚠ Not on your grid, left blank: {selUnmatched.map(u => `${u.where} P${u.pos} ${u.name}`).join(", ")}.
+                        {selUnmatched.some(u => (u.where === "GP" && u.pos <= 10) || u.where === "Sprint") &&
+                          " A scoring position is affected — add the driver under 🏎 Grid, then fill again."}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {selRace.hasSprint && (
                   <div style={{ marginBottom:16 }}>
                     <ST color={C.orange}>Sprint Order (Top 8)</ST>
@@ -2495,6 +2695,7 @@
       const [latestMsg, setLatestMsg] = useState(null);
       const [menuOpen,  setMenuOpen]  = useState(false);
       const [dbOk,      setDbOk]      = useState(true);
+      const [official,  setOfficial]  = useState(null);
       const toastTimer = useRef(null);
       const bottomEmailFiredRef   = useRef(null);
       const everyoneEmailFiredRef = useRef(null);
@@ -2502,6 +2703,7 @@
       useEffect(() => {
         emailjs.init(EMAILJS_PUBLIC_KEY);
         loadData().then(d => { setData(d); setDbOk(dataIsOk()); setLoaded(true); });
+        loadOfficialResults().then(setOfficial);   // read-only; never touches Firestore
         const unsub = subscribeData(d => setData(d));
         const unsubChat = subscribeChat(msgs => setLatestMsg(msgs.length ? msgs[msgs.length-1] : null));
         return () => { unsub(); unsubChat(); };
@@ -2676,7 +2878,7 @@
               {tab==="calendar"  && <CalendarTab  data={data} />}
               {tab==="research"  && <ResearchTab  data={data} />}
               {tab==="chat"      && <ChatTab      players={data.players} />}
-              {tab==="admin"     && <AdminTab     data={data} update={update} showToast={showToast} />}
+              {tab==="admin"     && <AdminTab     data={data} update={update} showToast={showToast} official={official} />}
             </div>
           </div>
         </>

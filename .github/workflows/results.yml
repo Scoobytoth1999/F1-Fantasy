@@ -1,0 +1,42 @@
+name: Fetch official F1 results
+
+on:
+  schedule:
+    # Every 2 hours, Friday–Monday (UTC), to catch sprints and GPs as they post.
+    - cron: "15 */2 * * 5,6,0,1"
+    # Once midweek, to pick up late penalties and appeal rulings.
+    - cron: "15 14 * * 3"
+  workflow_dispatch: {}   # "Run workflow" button for a manual fetch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-results
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch results from Jolpica-F1
+        run: node scripts/fetch-results.mjs
+
+      - name: Commit if changed
+        run: |
+          if [ -z "$(git status --porcelain -- results-2026.json)" ]; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name  "results-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results-2026.json
+          git commit -m "Update official results"
+          git push
