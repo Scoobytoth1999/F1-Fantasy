@@ -1,0 +1,3202 @@
+{
+  "season": 2026,
+  "source": "api.jolpi.ca (Jolpica-F1)",
+  "updatedAt": "2026-09-27T21:43:54.811Z",
+  "races": {
+    "1": {
+      "round": 1,
+      "name": "Australian Grand Prix",
+      "date": "2026-03-08",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Did not start"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Did not start"
+        }
+      ]
+    },
+    "2": {
+      "round": 2,
+      "name": "Chinese Grand Prix",
+      "date": "2026-03-15",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Did not start"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Did not start"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Did not start"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Did not start"
+        }
+      ],
+      "sprint": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Finished"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Finished"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Retired"
+        }
+      ]
+    },
+    "3": {
+      "round": 3,
+      "name": "Japanese Grand Prix",
+      "date": "2026-03-29",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": 20,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Retired"
+        }
+      ]
+    },
+    "4": {
+      "round": 4,
+      "name": "Miami Grand Prix",
+      "date": "2026-05-03",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Retired"
+        }
+      ],
+      "sprint": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Finished"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Finished"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Did not start"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Did not start"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Disqualified"
+        }
+      ]
+    },
+    "5": {
+      "round": 5,
+      "name": "Canadian Grand Prix",
+      "date": "2026-05-24",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Lapped"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Lapped"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Did not start"
+        }
+      ],
+      "sprint": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 20,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 21,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        }
+      ]
+    },
+    "6": {
+      "round": 6,
+      "name": "Monaco Grand Prix",
+      "date": "2026-06-07",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Retired"
+        }
+      ]
+    },
+    "7": {
+      "round": 7,
+      "name": "Barcelona Grand Prix",
+      "date": "2026-06-14",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Lapped"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Lapped"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Retired"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Retired"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        }
+      ]
+    },
+    "8": {
+      "round": 8,
+      "name": "Austrian Grand Prix",
+      "date": "2026-06-28",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        }
+      ]
+    },
+    "9": {
+      "round": 9,
+      "name": "British Grand Prix",
+      "date": "2026-07-05",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 20,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Retired"
+        }
+      ],
+      "sprint": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Finished"
+        },
+        {
+          "pos": 20,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Finished"
+        },
+        {
+          "pos": 21,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 22,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        }
+      ]
+    },
+    "10": {
+      "round": 10,
+      "name": "Belgian Grand Prix",
+      "date": "2026-07-19",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Retired"
+        }
+      ]
+    },
+    "11": {
+      "round": 11,
+      "name": "Hungarian Grand Prix",
+      "date": "2026-07-26",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Lapped"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        }
+      ]
+    },
+    "12": {
+      "round": 12,
+      "name": "Dutch Grand Prix",
+      "date": "2026-08-23",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Yuki Tsunoda",
+          "code": "TSU",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Retired"
+        }
+      ],
+      "sprint": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Yuki Tsunoda",
+          "code": "TSU",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Finished"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Finished"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": 20,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 21,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        }
+      ]
+    },
+    "13": {
+      "round": 13,
+      "name": "Italian Grand Prix",
+      "date": "2026-09-06",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Yuki Tsunoda",
+          "code": "TSU",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Retired"
+        }
+      ]
+    },
+    "14": {
+      "round": 14,
+      "name": "Spanish Grand Prix",
+      "date": "2026-09-13",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Lapped"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Yuki Tsunoda",
+          "code": "TSU",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Retired"
+        }
+      ]
+    },
+    "15": {
+      "round": 15,
+      "name": "Azerbaijan Grand Prix",
+      "date": "2026-09-26",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Oliver Bearman",
+          "code": "BEA",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Retired"
+        }
+      ]
+    }
+  }
+}
