@@ -2539,7 +2539,9 @@
       const xAt = i => cols.length === 1 ? padL + plotW/2 : padL + (i * plotW) / (cols.length - 1);
       const yAt = p => padT + (p - 1) * rowH;
 
-      const visible = ROSTER_2026.filter(d => !hidden.has(DRIVER_META[d].team));
+      // A pinned driver always draws, even if their team is hidden — so
+      // "Clear", then tapping drivers, builds a comparison on a blank chart.
+      const visible = ROSTER_2026.filter(d => !hidden.has(DRIVER_META[d].team) || focus.has(d));
 
       function toggleTeam(t) {
         setHidden(prev => {
@@ -2668,7 +2670,7 @@
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(168px, 1fr))", gap:4 }}>
               {ROSTER_2026.map(d => {
                 const meta = DRIVER_META[d];
-                const off  = hidden.has(meta.team);
+                const off  = hidden.has(meta.team) && !focus.has(d);   // pinned = shown, so not faded
                 const s    = summary(d);
                 return (
                   <button key={d} className="bp" onClick={() => toggleFocus(d)}
