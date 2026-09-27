@@ -2504,7 +2504,14 @@
 
     function ResearchTab({ data }) {
       const [hidden, setHidden] = useState(() => new Set());
-      const [focus,  setFocus]  = useState(null);   // driver name pinned by click
+      // Drivers pinned by tapping. A Set, so several can be compared at once:
+      // tap to add, tap again to remove. Everyone else dims while any are pinned.
+      const [focus,  setFocus]  = useState(() => new Set());
+      const toggleFocus = d => setFocus(prev => {
+        const n = new Set(prev);
+        n.has(d) ? n.delete(d) : n.add(d);
+        return n;
+      });
       const [hover,  setHover]  = useState(null);
 
       const results = data.driverResults || SEED_DRIVER_RESULTS;
@@ -2569,13 +2576,13 @@
             <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:12 }}>
               Every driver's finishing position, race by race. Lines climb toward the top as a driver
               finishes higher. A break in a line is a DNF or a race they didn't start.
-              Tap a team to hide it, tap a driver to isolate them.
+              Tap a team to hide it. Tap drivers to highlight them — tap several to compare.
             </div>
 
             <div style={{ display:"flex", gap:6, marginBottom:10 }}>
               <Btn variant="ghost" onClick={showAll} style={{ padding:"6px 10px", fontSize:10 }}>All teams</Btn>
               <Btn variant="ghost" onClick={hideAll} style={{ padding:"6px 10px", fontSize:10 }}>Clear</Btn>
-              {focus && <Btn variant="ghost" onClick={() => setFocus(null)} style={{ padding:"6px 10px", fontSize:10 }}>Unpin {focus.split(" ").slice(-1)[0]}</Btn>}
+              {focus.size > 0 && <Btn variant="ghost" onClick={() => setFocus(new Set())} style={{ padding:"6px 10px", fontSize:10 }}>Unpin {focus.size === 1 ? [...focus][0].split(" ").slice(-1)[0] : `all ${focus.size}`}</Btn>}
             </div>
 
             <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:14 }}>
@@ -2617,24 +2624,25 @@
                     </g>
                   ))}
                   {/* driver traces */}
-                  {visible.map(d => {
+                  {[...visible.filter(d => !focus.has(d)), ...visible.filter(d => focus.has(d))].map(d => {
                     const meta = DRIVER_META[d];
-                    const dim  = focus && focus !== d;
+                    const on   = focus.has(d);
+                    const dim  = focus.size > 0 && !on;
                     return (
                       <g key={d} opacity={dim ? 0.12 : 1} style={{ transition:"opacity .15s" }}>
                         {segmentsFor(d).map((seg,si) => (
                           <polyline key={si} fill="none" stroke={meta.color}
-                            strokeWidth={focus === d ? 3.4 : 2}
+                            strokeWidth={on ? 3.4 : 2}
                             strokeLinejoin="round" strokeLinecap="round"
                             points={seg.map(pt => `${pt.x},${pt.y}`).join(" ")} />
                         ))}
                         {segmentsFor(d).flat().map((pt,pi) => (
-                          <circle key={pi} cx={pt.x} cy={pt.y} r={focus === d ? 5 : 3.4}
+                          <circle key={pi} cx={pt.x} cy={pt.y} r={on ? 5 : 3.4}
                             fill={meta.color} stroke="var(--card)" strokeWidth={1.2}
                             style={{ cursor:"pointer" }}
                             onMouseEnter={() => setHover({ d, pos:pt.pos, race:pt.race, x:pt.x, y:pt.y })}
                             onMouseLeave={() => setHover(null)}
-                            onClick={() => setFocus(f => f === d ? null : d)} />
+                            onClick={() => toggleFocus(d)} />
                         ))}
                       </g>
                     );
@@ -2663,10 +2671,10 @@
                 const off  = hidden.has(meta.team);
                 const s    = summary(d);
                 return (
-                  <button key={d} className="bp" onClick={() => setFocus(f => f === d ? null : d)}
+                  <button key={d} className="bp" onClick={() => toggleFocus(d)}
                     style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 9px", borderRadius:9,
-                      border:`1px solid ${focus===d ? meta.color : "transparent"}`,
-                      background: focus===d ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent",
+                      border:`1px solid ${focus.has(d) ? meta.color : "transparent"}`,
+                      background: focus.has(d) ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent",
                       opacity: off ? .35 : 1, cursor:"pointer", textAlign:"left", width:"100%" }}>
                     <span style={{ width:11, height:3, borderRadius:2, background:meta.color, flexShrink:0 }} />
                     <span style={{ flex:1, minWidth:0 }}>
