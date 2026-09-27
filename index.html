@@ -2720,6 +2720,11 @@
         setMenuOpen(false);
       }
 
+      function goHome() {
+        changeTab("standings");
+        window.scrollTo({ top:0, behavior:"smooth" });
+      }
+
       useEffect(() => {
         if (!menuOpen) return;
         const onKey = e => { if (e.key === "Escape") setMenuOpen(false); };
@@ -2838,7 +2843,12 @@
             )}
             <div style={{ background:"color-mix(in srgb, var(--card) 92%, transparent)", backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
               <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", height:56 }}>
-                <div style={{ display:"flex", alignItems:"baseline", gap:9 }}>
+                {/* Title doubles as a Home button: back to Standings, scrolled to the top. */}
+                <div
+                  role="button" tabIndex={0} aria-label="Go to home (Standings)"
+                  onClick={goHome}
+                  onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), goHome())}
+                  style={{ display:"flex", alignItems:"baseline", gap:9, cursor:"pointer", userSelect:"none", WebkitTapHighlightColor:"transparent" }}>
                   <span style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:21, color:C.red, letterSpacing:"-.02em" }}>F1</span>
                   <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:17, letterSpacing:"-.01em" }}>FANTASY</span>
                   <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.dim, fontWeight:400, letterSpacing:".12em", textTransform:"uppercase" }}>2026</span>
