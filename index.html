@@ -59,40 +59,133 @@
       /* ── Semantic colours (fixed, so status always reads the same) ── */
       --green:#0F7B43; --gold:#8A6A00; --orange:#B24A00; --teal:#00706B; --danger:#C0182B;
 
-      /* ── Team palette (overwritten by the palette classes below) ── */
-      --accent:#df102e; --accent2:#7f7900;
-      --head1:#eb1131; --head2:#520611;
+      /* ── Team livery: every var below is overridden per team (defaults = Ferrari) ── */
+      --accent:#B0101C; --accent2:#8A6A00;
+      --hero:linear-gradient(112deg, transparent 0 60%, #FFD100 60% 61.4%, transparent 61.4% 64.5%, #FFD100 64.5% 65.2%, transparent 65.2%), linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(60,0,6,.45) 100%), repeating-linear-gradient(45deg, rgba(0,0,0,.14) 0 3px, transparent 3px 6px), repeating-linear-gradient(-45deg, rgba(0,0,0,.10) 0 3px, transparent 3px 6px), #C1121F;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(255,255,255,.86); --chip-bg:rgba(0,0,0,.28); --chip-ink:#FFFFFF;
+      --ground:#FBF6EF; --ground-tex:repeating-linear-gradient(45deg, rgba(150,20,30,.035) 0 3px, transparent 3px 6px), repeating-linear-gradient(-45deg, rgba(150,20,30,.03) 0 3px, transparent 3px 6px);
+      --edge:linear-gradient(90deg, #C1121F 0 78%, #FFD100 78% 100%); --tint:#FBE9E6;
     }
 
-    /* Ferrari */
+    /* ── Liveries: colour, stripes and texture only — no team marks ── */
+    /* Ferrari — rosso, carbon weave, gold pinstripes */
     [data-team="ferrari"] {
-      --accent:#df102e; --accent2:#7f7900; --head1:#eb1131; --head2:#520611;
+      --accent:#B0101C; --accent2:#8A6A00;
+      --hero:linear-gradient(112deg, transparent 0 60%, #FFD100 60% 61.4%, transparent 61.4% 64.5%, #FFD100 64.5% 65.2%, transparent 65.2%), linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(60,0,6,.45) 100%), repeating-linear-gradient(45deg, rgba(0,0,0,.14) 0 3px, transparent 3px 6px), repeating-linear-gradient(-45deg, rgba(0,0,0,.10) 0 3px, transparent 3px 6px), #C1121F;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(255,255,255,.86); --chip-bg:rgba(0,0,0,.28); --chip-ink:#FFFFFF;
+      --ground:#FBF6EF; --ground-tex:repeating-linear-gradient(45deg, rgba(150,20,30,.035) 0 3px, transparent 3px 6px), repeating-linear-gradient(-45deg, rgba(150,20,30,.03) 0 3px, transparent 3px 6px);
+      --edge:linear-gradient(90deg, #C1121F 0 78%, #FFD100 78% 100%); --tint:#FBE9E6;
     }
-    /* Mercedes — graphite/silver header, Petronas teal accent */
+    /* Mercedes — black-to-silver, teal streaks */
     [data-team="mercedes"] {
-      --accent:#007f6b; --accent2:#4E5866; --head1:#6B7280; --head2:#22262B;
+      --accent:#00756F; --accent2:#4E5866;
+      --hero:linear-gradient(102deg, transparent 0 57%, #00A19C 57% 58.2%, transparent 58.2% 61%, rgba(0,161,156,.6) 61% 61.6%, transparent 61.6%), repeating-linear-gradient(102deg, rgba(255,255,255,.055) 0 1px, transparent 1px 13px), linear-gradient(180deg, #3A4148 0%, #1A1E22 55%, #0B0D10 100%), #15191D;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(226,232,236,.86); --chip-bg:rgba(0,161,156,.22); --chip-ink:#7FF0E9;
+      --ground:#F1F3F4; --ground-tex:repeating-linear-gradient(102deg, rgba(30,40,48,.035) 0 1px, transparent 1px 14px);
+      --edge:linear-gradient(90deg, #1A1E22 0 70%, #A7B0B8 70% 88%, #00A19C 88% 100%); --tint:#E4ECEC;
     }
-    /* Red Bull */
+    /* Red Bull — matte navy, red and yellow slashes */
     [data-team="redbull"] {
-      --accent:#3e70bb; --accent2:#887500; --head1:#4175c4; --head2:#172945;
+      --accent:#233A7E; --accent2:#B5122F;
+      --hero:linear-gradient(120deg, transparent 0 56%, #D6173A 56% 64%, transparent 64% 66.5%, #FFC906 66.5% 70%, transparent 70%), linear-gradient(180deg, #22346A 0%, #141F3D 100%), #1B2A52;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(225,230,245,.86); --chip-bg:rgba(255,201,6,.18); --chip-ink:#FFD84D;
+      --ground:#F2F4F9; --ground-tex:repeating-linear-gradient(120deg, rgba(27,42,82,.03) 0 10px, transparent 10px 22px);
+      --edge:linear-gradient(90deg, #1B2A52 0 64%, #D6173A 64% 84%, #FFC906 84% 100%); --tint:#E6EAF4;
     }
-    /* McLaren */
+    /* McLaren — papaya and anthracite */
     [data-team="mclaren"] {
-      --accent:#b25600; --accent2:#0b5ed7; --head1:#bc5b00; --head2:#422000;
+      --accent:#A44D00; --accent2:#2B2E33;
+      --hero:linear-gradient(110deg, transparent 0 58%, #2B2E33 58% 100%), repeating-linear-gradient(110deg, transparent 0 20px, rgba(0,0,0,.07) 20px 22px), #FF8000;
+      --hero-ink:#1D1F23; --hero-sub:rgba(29,31,35,.82); --chip-bg:#2B2E33; --chip-ink:#FFB066;
+      --ground:#FBF5EE; --ground-tex:repeating-linear-gradient(110deg, rgba(255,128,0,.05) 0 2px, transparent 2px 20px);
+      --edge:linear-gradient(90deg, #FF8000 0 72%, #2B2E33 72% 100%); --tint:#FDEBD9;
+    }
+    /* Racing Bulls — white, blue sweep, red stripe */
+    [data-team="racingbulls"] {
+      --accent:#1F3FD4; --accent2:#C4001F;
+      --hero:linear-gradient(118deg, transparent 0 55%, #1F3FD4 55% 80%, transparent 80% 82%, #E4002B 82% 85%, transparent 85%), linear-gradient(180deg, #FFFFFF 0%, #EEF1FB 100%), #FFFFFF;
+      --hero-ink:#0F1A4D; --hero-sub:rgba(15,26,77,.78); --chip-bg:#0F1A4D; --chip-ink:#FFFFFF;
+      --ground:#F4F6FC; --ground-tex:repeating-linear-gradient(118deg, rgba(31,63,212,.035) 0 2px, transparent 2px 18px);
+      --edge:linear-gradient(90deg, #1F3FD4 0 76%, #FFFFFF 76% 80%, #E4002B 80% 100%); --tint:#E7ECFC;
+    }
+    /* Alpine — blue with a pink stripe */
+    [data-team="alpine"] {
+      --accent:#0A5CB8; --accent2:#C2336F;
+      --hero:linear-gradient(115deg, transparent 0 59%, #FF87BC 59% 71%, transparent 71% 73%, #FFFFFF 73% 74%, transparent 74%), linear-gradient(180deg, #0B63C4 0%, #073C82 100%), #0A5CB8;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(232,240,252,.88); --chip-bg:rgba(255,135,188,.25); --chip-ink:#FFD1E6;
+      --ground:#F3F6FB; --ground-tex:repeating-linear-gradient(115deg, rgba(10,92,184,.035) 0 2px, transparent 2px 16px);
+      --edge:linear-gradient(90deg, #0A5CB8 0 70%, #FF87BC 70% 100%); --tint:#E5EEFA;
+    }
+    /* Williams — deep navy, bright blue stripes */
+    [data-team="williams"] {
+      --accent:#00628F; --accent2:#041E42;
+      --hero:linear-gradient(112deg, transparent 0 55%, #00A0DE 55% 59%, transparent 59% 61%, #00A0DE 61% 62.5%, transparent 62.5% 64%, #00A0DE 64% 64.8%, transparent 64.8%), linear-gradient(180deg, #06285A 0%, #031633 100%), #041E42;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(214,236,250,.88); --chip-bg:rgba(0,160,222,.22); --chip-ink:#8FDDFF;
+      --ground:#F1F5F9; --ground-tex:repeating-linear-gradient(112deg, rgba(4,30,66,.035) 0 2px, transparent 2px 16px);
+      --edge:linear-gradient(90deg, #041E42 0 68%, #00A0DE 68% 100%); --tint:#E1EEF6;
+    }
+    /* Haas — black, white and red */
+    [data-team="haas"] {
+      --accent:#C4102C; --accent2:#3B3B3F;
+      --hero:linear-gradient(115deg, transparent 0 57%, #FFFFFF 57% 63%, transparent 63% 65%, #E6002D 65% 68.5%, transparent 68.5%), linear-gradient(180deg, #2A2A2D 0%, #111113 100%), #1C1C1E;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(235,235,235,.86); --chip-bg:rgba(230,0,45,.26); --chip-ink:#FFB3C1;
+      --ground:#F4F4F3; --ground-tex:repeating-linear-gradient(115deg, rgba(20,20,22,.035) 0 2px, transparent 2px 16px);
+      --edge:linear-gradient(90deg, #1C1C1E 0 66%, #BFBFC2 66% 72%, #E6002D 72% 100%); --tint:#F3E4E6;
+    }
+    /* Audi — graphite, titanium silver, red */
+    [data-team="audi"] {
+      --accent:#B80018; --accent2:#4A4F55;
+      --hero:linear-gradient(112deg, transparent 0 54%, #C6CBD0 54% 66%, transparent 66% 67.5%, #D5001C 67.5% 70%, transparent 70%), linear-gradient(180deg, #34383C 0%, #15171A 100%), #26292C;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(230,233,236,.86); --chip-bg:rgba(213,0,28,.26); --chip-ink:#FFB3BD;
+      --ground:#F2F3F4; --ground-tex:repeating-linear-gradient(112deg, rgba(38,41,44,.035) 0 2px, transparent 2px 16px);
+      --edge:linear-gradient(90deg, #26292C 0 60%, #C6CBD0 60% 84%, #D5001C 84% 100%); --tint:#ECEDEF;
+    }
+    /* Aston Martin — racing green, lime stripes */
+    [data-team="astonmartin"] {
+      --accent:#00594F; --accent2:#5C6B00;
+      --hero:linear-gradient(114deg, transparent 0 58%, #CEDC00 58% 60.5%, transparent 60.5% 63%, #CEDC00 63% 63.8%, transparent 63.8%), linear-gradient(180deg, #006B5F 0%, #003D36 100%), #00594F;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(220,245,238,.86); --chip-bg:rgba(206,220,0,.2); --chip-ink:#E6F07A;
+      --ground:#F1F5F3; --ground-tex:repeating-linear-gradient(114deg, rgba(0,89,79,.035) 0 2px, transparent 2px 16px);
+      --edge:linear-gradient(90deg, #00594F 0 80%, #CEDC00 80% 100%); --tint:#E1EEEA;
+    }
+    /* Cadillac — black, white and gold */
+    [data-team="cadillac"] {
+      --accent:#7A5C00; --accent2:#2A2A2A;
+      --hero:linear-gradient(110deg, transparent 0 56%, #F2F2F2 56% 59%, transparent 59% 61%, #C9A227 61% 63%, transparent 63% 65%, #F2F2F2 65% 65.8%, transparent 65.8%), repeating-linear-gradient(110deg, rgba(255,255,255,.04) 0 1px, transparent 1px 12px), linear-gradient(180deg, #242424 0%, #0A0A0A 100%), #121212;
+      --hero-ink:#FFFFFF; --hero-sub:rgba(236,236,236,.86); --chip-bg:rgba(201,162,39,.22); --chip-ink:#F0D68A;
+      --ground:#F5F4F1; --ground-tex:repeating-linear-gradient(110deg, rgba(20,20,20,.03) 0 1px, transparent 1px 14px);
+      --edge:linear-gradient(90deg, #121212 0 70%, #C9A227 70% 100%); --tint:#F1EBDA;
     }
 
     * { box-sizing:border-box; margin:0; padding:0; }
     body {
-      background:var(--bg); color:var(--text);
+      background-color:var(--ground); background-image:var(--ground-tex); color:var(--text);
       font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden;
-      transition:background .4s ease;
+      transition:background-color .4s ease;
     }
-    /* Soft team-tinted wash at the top of the page — this is the rotating background */
-    body::after {
-      content:''; position:fixed; top:-160px; left:-100px; width:620px; height:480px;
-      background:radial-gradient(ellipse at center,
-        color-mix(in srgb, var(--head1) 22%, transparent) 0%, transparent 70%);
-      pointer-events:none; z-index:0; transition:background .4s ease;
+    /* Livery band: Next Race on Standings and the Pick Driver header */
+    .hero-band {
+      position:relative; overflow:hidden; border-radius:16px; margin-bottom:14px;
+      background:var(--hero); border:1px solid var(--border);
+    }
+    .hero-band::after {   /* chequered strip along the bottom edge */
+      content:''; position:absolute; left:0; right:0; bottom:0; height:10px;
+      background:repeating-conic-gradient(#15171A 0 25%, #FFFFFF 0 50%) 0 0 / 10px 10px;
+    }
+    .hero-chip {
+      display:inline-block; padding:7px 12px; border-radius:8px;
+      background:var(--chip-bg); color:var(--chip-ink);
+      font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    }
+    .checker-flag {
+      width:18px; height:18px; border-radius:3px; flex-shrink:0;
+      background:repeating-conic-gradient(#15171A 0 25%, #FFFFFF 0 50%) 0 0 / 6px 6px;
+    }
+    /* Every card gets the team's livery stripe across its top edge */
+    .lcard { position:relative; overflow:hidden; }
+    .lcard::before {
+      content:''; position:absolute; left:0; right:0; top:0; height:4px;
+      background:var(--edge); pointer-events:none;
     }
     #root { position:relative; z-index:1; }
     ::-webkit-scrollbar { width:4px; }
@@ -179,11 +272,20 @@
 
     // Team palettes for the rotating background.
     const PALETTES = [
-      { id:"ferrari",  name:"Ferrari"  },
-      { id:"mercedes", name:"Mercedes" },
-      { id:"redbull",  name:"Red Bull" },
-      { id:"mclaren",  name:"McLaren"  },
+      { id:"ferrari",     name:"Ferrari"      },
+      { id:"mercedes",    name:"Mercedes"     },
+      { id:"redbull",     name:"Red Bull"     },
+      { id:"mclaren",     name:"McLaren"      },
+      { id:"racingbulls", name:"Racing Bulls" },
+      { id:"alpine",      name:"Alpine"       },
+      { id:"williams",    name:"Williams"     },
+      { id:"haas",        name:"Haas"         },
+      { id:"audi",        name:"Audi"         },
+      { id:"astonmartin", name:"Aston Martin" },
+      { id:"cadillac",    name:"Cadillac"     },
     ];
+    // ?team=<id> in the URL pins one livery (no rotation) — for previewing themes.
+    const FORCED_TEAM = PALETTES.find(p => p.id === new URLSearchParams(window.location.search).get("team")) || null;
     // Pick a random palette, never the same one twice in a row.
     function nextTeam(currentId) {
       const pool = PALETTES.filter(p => p.id !== currentId);
@@ -701,12 +803,12 @@
     const CHEV = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E\")";
 
     const Card = ({ children, style={}, className="" }) => (
-      <div className={className} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:14, ...style }}>
+      <div className={`lcard ${className}`} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:14, ...style }}>
         {children}
       </div>
     );
     const ST = ({ children, color=C.red }) => (
-      <div style={{ fontSize:10, fontWeight:600, letterSpacing:".2em", textTransform:"uppercase", color, marginBottom:14, fontFamily:"DM Sans,sans-serif", display:"flex", alignItems:"center", gap:7 }}>
+      <div style={{ fontSize:10, fontWeight:700, letterSpacing:".2em", textTransform:"uppercase", color, marginBottom:14, fontFamily:"DM Sans,sans-serif", display:"flex", alignItems:"center", gap:7, background:"var(--tint)", borderRadius:8, padding:"7px 10px", margin:"0 -8px 14px" }}>
         <div style={{ width:3, height:11, background:color, borderRadius:2, flexShrink:0 }} />
         {children}
       </div>
@@ -773,20 +875,20 @@
         <div className="anim">
 
           {next && (
-            <div style={{ background:"linear-gradient(135deg, var(--head1) 0%, var(--head2) 100%)", border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.red}`, borderRadius:16, padding:"16px 18px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-              <div>
-                <div style={{ fontSize:9, fontWeight:600, letterSpacing:".22em", textTransform:"uppercase", color:C.dim, marginBottom:4 }}>Next Race</div>
-                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:17, letterSpacing:"-.01em", marginBottom:3 }}>{next.flag} {next.name}</div>
-                <div style={{ fontSize:12, color:"var(--subtext)" }}>
+            <div className="hero-band" style={{ padding:"22px 20px 28px" }}>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:".24em", textTransform:"uppercase", color:"var(--hero-sub)", marginBottom:6 }}>Next Race</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:26, lineHeight:1.08, letterSpacing:"-.01em", color:"var(--hero-ink)", maxWidth:"62%", marginBottom:6 }}>{next.flag} {next.name}</div>
+              <div style={{ fontSize:13, fontWeight:500, color:"var(--hero-sub)", maxWidth:"62%" }}>
                 {next.hasSprint
-                  ? <>Sprint: {fmtShort(keyDate(next))} · GP: {fmtShort(next.date)}</>
-                  : fmtDate(next.date)
-                }
+                  ? <>Sprint {fmtShort(keyDate(next))} · GP {fmtShort(next.date)}</>
+                  : <>{next.location} · {fmtDate(next.date)}</>}
               </div>
-              </div>
-              <div style={{ background:"color-mix(in srgb, var(--accent) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--accent) 25%, transparent)", borderRadius:10, padding:"10px 14px", textAlign:"center", flexShrink:0 }}>
-                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:24, color:C.red, lineHeight:1, marginBottom:2 }}>{Object.keys(next.picks||{}).length}/{data.players.length}</div>
-                <div style={{ fontSize:9, color:C.dim, letterSpacing:".15em", textTransform:"uppercase" }}>Picked</div>
+              <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+                <span className="hero-chip">{Object.keys(next.picks||{}).length}/{data.players.length} picked</span>
+                <span className="hero-chip">
+                  {next.status === "locked" ? "🔒 Locked" : nextFFA ? "⚡ Free-for-all" : next.status === "picks_open" ? "Picks open" : "Upcoming"}
+                </span>
+                {next.hasSprint && <span className="hero-chip">Sprint weekend</span>}
               </div>
             </div>
           )}
@@ -804,13 +906,16 @@
                 : null;
               return (
                 <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:i<ranked.length-1?`1px solid ${C.border}`:"none" }}>
-                  <div className={rc(i)} style={{ width:28, fontSize:i<3?17:12, textAlign:"center", fontFamily:"Syne,sans-serif", fontWeight:800 }}>{ri(i)}</div>
+                  <div style={{ width:34, height:34, borderRadius:9, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:13,
+                    background: i===0 ? C.red : C.card, color: i===0 ? "#fff" : i<3 ? C.red : C.dim,
+                    border:`1px solid ${i<3 ? C.red : C.border}` }}>P{i+1}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:15, letterSpacing:"-.01em" }}>{p.name}</div>
                     {lpts !== null && <div style={{ fontSize:11, color:C.dim, marginTop:1 }}>Last race: +{lpts} pts</div>}
                   </div>
+                  {i===0 && <span className="checker-flag" aria-hidden="true" />}
                   <div style={{ textAlign:"right" }}>
-                    <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:22 }}>{p.pts}</div>
+                    <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:22, color: i===0 ? C.red : "var(--text)" }}>{p.pts}</div>
                     <div style={{ fontSize:9, color:C.dim, letterSpacing:".1em", textTransform:"uppercase" }}>pts</div>
                   </div>
                 </div>
@@ -1134,18 +1239,19 @@
 
       return (
         <div className="anim">
-          <div style={{ background:"linear-gradient(135deg, var(--head1) 0%, var(--head2) 100%)", border:`1px solid ${C.border}`, borderTop:`3px solid ${C.red}`, borderRadius:16, padding:20, marginBottom:14 }}>
+          <div className="hero-band" style={{ padding:"20px 20px 28px" }}>
             <div style={{ fontSize:40, marginBottom:5 }}>{next.flag}</div>
-            <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, textTransform:"uppercase", letterSpacing:".03em", marginBottom:4 }}>{next.name}</div>
-            <div style={{ fontSize:12, color:C.dim, marginBottom:12 }}>{next.location} · {fmtDate(next.date)}</div>
+            <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:22, textTransform:"uppercase", letterSpacing:".02em", lineHeight:1.1, color:"var(--hero-ink)", maxWidth:"62%", marginBottom:6 }}>{next.name}</div>
+            <div style={{ fontSize:13, fontWeight:500, color:"var(--hero-sub)", maxWidth:"62%", marginBottom:12 }}>{next.location} · {fmtDate(next.date)}</div>
             <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
-              {next.hasSprint && <Badge color={C.orange}>Sprint Weekend</Badge>}
-              {locked ? <Badge color={C.red}>🔒 Picks Locked</Badge>
-                : freeForAll ? <Badge color={C.orange}>⚡ Free-for-all — locks at qualifying!</Badge>
-                : days <= 0 ? <Badge color={C.red}>Locks Today!</Badge>
-                : next.hasSprint
-                  ? <Badge color={C.green}>🟢 Open · Locks {days}d before sprint</Badge>
-                  : <Badge color={C.green}>🟢 Open · {days}d to deadline</Badge>}
+              {next.hasSprint && <span className="hero-chip">Sprint weekend</span>}
+              <span className="hero-chip">
+                {locked ? "🔒 Picks locked"
+                  : freeForAll ? "⚡ Free-for-all — locks at qualifying"
+                  : days <= 0 ? "Locks today"
+                  : next.hasSprint ? `Open · locks ${days}d before sprint`
+                  : `Open · ${days}d to deadline`}
+              </span>
             </div>
           </div>
 
@@ -2699,7 +2805,7 @@
     function App() {
       const [data,      setData]      = useState(null);
       const [tab,       setTab]       = useState("standings");
-      const [team,      setTeam]      = useState(() => nextTeam(null));
+      const [team,      setTeam]      = useState(() => FORCED_TEAM || nextTeam(null));
       const [loaded,    setLoaded]    = useState(false);
       const [toast,     setToast]     = useState("");
       const [latestMsg, setLatestMsg] = useState(null);
@@ -2725,7 +2831,7 @@
       useEffect(() => { applyTeam(team.id); }, [team]);
 
       function changeTab(id) {
-        if (id !== tab) setTeam(t => nextTeam(t.id));
+        if (id !== tab && !FORCED_TEAM) setTeam(t => nextTeam(t.id));
         setTab(id);
         setMenuOpen(false);
       }
@@ -2842,7 +2948,7 @@
               {toast}
             </div>
           )}
-          <div style={{ minHeight:"100vh", background:C.bg, color:"var(--text)" }}>
+          <div style={{ minHeight:"100vh", color:"var(--text)" }}>
             {!dbOk && (
               <div style={{ background:"color-mix(in srgb, var(--danger) 12%, #fff)", borderBottom:`2px solid ${C.danger}`, padding:"10px 16px", position:"sticky", top:0, zIndex:120 }}>
                 <div style={{ maxWidth:680, margin:"0 auto", fontSize:12.5, color:C.danger, fontWeight:600, lineHeight:1.55 }}>
