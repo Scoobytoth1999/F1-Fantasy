@@ -1,0 +1,285 @@
+{
+  "season": 2026,
+  "source": "api.jolpi.ca (Jolpica-F1)",
+  "updatedAt": "2026-09-27T22:34:22.875Z",
+  "races": {
+    "1": {
+      "round": 1,
+      "name": "Australian Grand Prix",
+      "date": "2026-03-08",
+      "time": "04:00:00Z",
+      "qualifying": {
+        "date": "2026-03-07",
+        "time": "05:00:00Z"
+      }
+    },
+    "2": {
+      "round": 2,
+      "name": "Chinese Grand Prix",
+      "date": "2026-03-15",
+      "time": "07:00:00Z",
+      "qualifying": {
+        "date": "2026-03-14",
+        "time": "07:00:00Z"
+      },
+      "sprint": {
+        "date": "2026-03-14",
+        "time": "03:00:00Z"
+      },
+      "sprintQualifying": {
+        "date": "2026-03-13",
+        "time": "07:30:00Z"
+      }
+    },
+    "3": {
+      "round": 3,
+      "name": "Japanese Grand Prix",
+      "date": "2026-03-29",
+      "time": "05:00:00Z",
+      "qualifying": {
+        "date": "2026-03-28",
+        "time": "06:00:00Z"
+      }
+    },
+    "4": {
+      "round": 4,
+      "name": "Miami Grand Prix",
+      "date": "2026-05-03",
+      "time": "20:00:00Z",
+      "qualifying": {
+        "date": "2026-05-02",
+        "time": "20:00:00Z"
+      },
+      "sprint": {
+        "date": "2026-05-02",
+        "time": "16:00:00Z"
+      },
+      "sprintQualifying": {
+        "date": "2026-05-01",
+        "time": "20:30:00Z"
+      }
+    },
+    "5": {
+      "round": 5,
+      "name": "Canadian Grand Prix",
+      "date": "2026-05-24",
+      "time": "20:00:00Z",
+      "qualifying": {
+        "date": "2026-05-23",
+        "time": "20:00:00Z"
+      },
+      "sprint": {
+        "date": "2026-05-23",
+        "time": "16:00:00Z"
+      },
+      "sprintQualifying": {
+        "date": "2026-05-22",
+        "time": "20:30:00Z"
+      }
+    },
+    "6": {
+      "round": 6,
+      "name": "Monaco Grand Prix",
+      "date": "2026-06-07",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-06-06",
+        "time": "14:00:00Z"
+      }
+    },
+    "7": {
+      "round": 7,
+      "name": "Barcelona Grand Prix",
+      "date": "2026-06-14",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-06-13",
+        "time": "14:00:00Z"
+      }
+    },
+    "8": {
+      "round": 8,
+      "name": "Austrian Grand Prix",
+      "date": "2026-06-28",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-06-27",
+        "time": "14:00:00Z"
+      }
+    },
+    "9": {
+      "round": 9,
+      "name": "British Grand Prix",
+      "date": "2026-07-05",
+      "time": "14:00:00Z",
+      "qualifying": {
+        "date": "2026-07-04",
+        "time": "15:00:00Z"
+      },
+      "sprint": {
+        "date": "2026-07-04",
+        "time": "11:00:00Z"
+      },
+      "sprintQualifying": {
+        "date": "2026-07-03",
+        "time": "15:30:00Z"
+      }
+    },
+    "10": {
+      "round": 10,
+      "name": "Belgian Grand Prix",
+      "date": "2026-07-19",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-07-18",
+        "time": "14:00:00Z"
+      }
+    },
+    "11": {
+      "round": 11,
+      "name": "Hungarian Grand Prix",
+      "date": "2026-07-26",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-07-25",
+        "time": "14:00:00Z"
+      }
+    },
+    "12": {
+      "round": 12,
+      "name": "Dutch Grand Prix",
+      "date": "2026-08-23",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-08-22",
+        "time": "14:00:00Z"
+      },
+      "sprint": {
+        "date": "2026-08-22",
+        "time": "10:00:00Z"
+      },
+      "sprintQualifying": {
+        "date": "2026-08-21",
+        "time": "14:30:00Z"
+      }
+    },
+    "13": {
+      "round": 13,
+      "name": "Italian Grand Prix",
+      "date": "2026-09-06",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-09-05",
+        "time": "14:00:00Z"
+      }
+    },
+    "14": {
+      "round": 14,
+      "name": "Spanish Grand Prix",
+      "date": "2026-09-13",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-09-12",
+        "time": "14:00:00Z"
+      }
+    },
+    "15": {
+      "round": 15,
+      "name": "Azerbaijan Grand Prix",
+      "date": "2026-09-26",
+      "time": "11:00:00Z",
+      "qualifying": {
+        "date": "2026-09-25",
+        "time": "12:00:00Z"
+      }
+    },
+    "16": {
+      "round": 16,
+      "name": "Bahrain Grand Prix in Malaysia",
+      "date": "2026-10-04",
+      "time": "07:00:00Z",
+      "qualifying": {
+        "date": "2026-10-03",
+        "time": "08:00:00Z"
+      }
+    },
+    "17": {
+      "round": 17,
+      "name": "Singapore Grand Prix",
+      "date": "2026-10-11",
+      "time": "12:00:00Z",
+      "qualifying": {
+        "date": "2026-10-10",
+        "time": "13:00:00Z"
+      },
+      "sprint": {
+        "date": "2026-10-10",
+        "time": "09:00:00Z"
+      },
+      "sprintQualifying": {
+        "date": "2026-10-09",
+        "time": "12:30:00Z"
+      }
+    },
+    "18": {
+      "round": 18,
+      "name": "United States Grand Prix",
+      "date": "2026-10-25",
+      "time": "20:00:00Z",
+      "qualifying": {
+        "date": "2026-10-24",
+        "time": "21:00:00Z"
+      }
+    },
+    "19": {
+      "round": 19,
+      "name": "Mexico City Grand Prix",
+      "date": "2026-11-01",
+      "time": "20:00:00Z",
+      "qualifying": {
+        "date": "2026-10-31",
+        "time": "21:00:00Z"
+      }
+    },
+    "20": {
+      "round": 20,
+      "name": "Brazilian Grand Prix",
+      "date": "2026-11-08",
+      "time": "17:00:00Z",
+      "qualifying": {
+        "date": "2026-11-07",
+        "time": "18:00:00Z"
+      }
+    },
+    "21": {
+      "round": 21,
+      "name": "Las Vegas Grand Prix",
+      "date": "2026-11-22",
+      "time": "04:00:00Z",
+      "qualifying": {
+        "date": "2026-11-21",
+        "time": "04:00:00Z"
+      }
+    },
+    "22": {
+      "round": 22,
+      "name": "Qatar Grand Prix",
+      "date": "2026-11-29",
+      "time": "16:00:00Z",
+      "qualifying": {
+        "date": "2026-11-28",
+        "time": "18:00:00Z"
+      }
+    },
+    "23": {
+      "round": 23,
+      "name": "Abu Dhabi Grand Prix",
+      "date": "2026-12-06",
+      "time": "13:00:00Z",
+      "qualifying": {
+        "date": "2026-12-05",
+        "time": "14:00:00Z"
+      }
+    }
+  }
+}
