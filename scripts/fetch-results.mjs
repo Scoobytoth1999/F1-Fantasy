@@ -10,6 +10,7 @@ import { readFile, writeFile } from "node:fs/promises";
 const SEASON = 2026;
 const BASE = `https://api.jolpi.ca/ergast/f1/${SEASON}`;
 const OUT = new URL(`../results-${SEASON}.json`, import.meta.url);
+const SCHEDULE_OUT = new URL(`../schedule-${SEASON}.json`, import.meta.url);
 // Jolpica asks every client to identify itself with a custom User-Agent.
 const HEADERS = {
   "User-Agent": "F1FantasyLeague/1.0 (+https://github.com/Scoobytoth1999/F1-Fantasy)",
@@ -59,6 +60,33 @@ const rowsOf = r => r.rows
   .slice()
   .sort((a, b) => Number(a.position) - Number(b.position))
   .map(toRow);
+
+// ── Schedule: official session start times (UTC), for the app's Detroit-time display.
+// Written to its own file with its own change check, so a schedule tweak never
+// touches results-2026.json and vice versa.
+{
+  const { MRData } = await getJSON(`${BASE}/races.json?limit=100`);
+  const slim = x => (x && x.date ? { date: x.date, time: x.time || null } : undefined);
+  const races = {};
+  for (const r of MRData.RaceTable.Races) {
+    races[r.round] = {
+      round: Number(r.round), name: r.raceName, date: r.date, time: r.time || null,
+      qualifying: slim(r.Qualifying), sprint: slim(r.Sprint), sprintQualifying: slim(r.SprintQualifying),
+    };
+  }
+  let prevSched = null;
+  try { prevSched = JSON.parse(await readFile(SCHEDULE_OUT, "utf8")); } catch { /* first run */ }
+  if (Object.keys(races).length === 0) {
+    console.log("Schedule empty from API — keeping the existing file.");
+  } else if (prevSched && JSON.stringify(prevSched.races) === JSON.stringify(races)) {
+    console.log("Schedule unchanged.");
+  } else {
+    await writeFile(SCHEDULE_OUT, JSON.stringify({ season: SEASON, source: "api.jolpi.ca (Jolpica-F1)",
+      updatedAt: new Date().toISOString(), races }, null, 2) + "\n");
+    console.log(`Wrote schedule: ${Object.keys(races).length} rounds.`);
+  }
+  await sleep(500);
+}
 
 const gp     = await fetchAll("results", "Results");
 const sprint = await fetchAll("sprint", "SprintResults");

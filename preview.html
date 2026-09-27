@@ -490,6 +490,47 @@
       return null;
     }
 
+    // Official session times, written by the same Action to schedule-2026.json.
+    async function loadSchedule() {
+      for (const base of [
+        "https://raw.githubusercontent.com/Scoobytoth1999/F1-Fantasy/main/schedule-2026.json",
+        "schedule-2026.json",
+      ]) {
+        try {
+          const res = await fetch(`${base}?t=${Date.now()}`, { cache:"no-store" });
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (json && json.races) return json;
+        } catch(e) { /* try the next source */ }
+      }
+      return null;
+    }
+
+    // Start time in Detroit time — the whole league is in Michigan. Shows EDT or
+    // EST automatically. Returns "" when the official time isn't published yet.
+    function detroitTime(session, withDay) {
+      if (!session || !session.date || !session.time) return "";
+      const t = new Date(`${session.date}T${session.time}`);
+      if (isNaN(t)) return "";
+      return t.toLocaleString("en-US", {
+        timeZone:"America/Detroit",
+        ...(withDay ? { weekday:"short" } : {}),
+        hour:"numeric", minute:"2-digit", timeZoneName:"short",
+      });
+    }
+    function StartTimes({ race, schedule }) {
+      const s = officialFor(race, schedule);   // same date-matching as results
+      const gp = detroitTime(s, true);
+      const sp = race.hasSprint ? detroitTime(s && s.sprint, true) : "";
+      if (!gp && !sp) return null;
+      return (
+        <div style={{ fontSize:13, fontWeight:600, color:"var(--hero-ink)", maxWidth:"62%", marginTop:4 }}>
+          {sp && <div>Sprint · {sp}</div>}
+          {gp && <div>Race · {gp}</div>}
+        </div>
+      );
+    }
+
     // Match a league race to its official round by DATE (±1 day), never by name:
     // the league calendar's names ("Bahrain Grand Prix (Malaysia)") don't always
     // match the official ones.
@@ -889,7 +930,7 @@
 
     // ── Standings ────────────────────────────────────────────────────────────────
 
-        function StandingsTab({ data, latestMsg, setTab }) {
+        function StandingsTab({ data, latestMsg, setTab, schedule }) {
       const [replyWho,  setReplyWho]  = useState("");
       const [replyText, setReplyText] = useState("");
       const [replying,  setReplying]  = useState(false);
@@ -936,6 +977,7 @@
                   ? <>Sprint {fmtShort(keyDate(next))} · GP {fmtShort(next.date)}</>
                   : <>{next.location} · {fmtDate(next.date)}</>}
               </div>
+              <StartTimes race={next} schedule={schedule} />
               <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
                 <span className="hero-chip">{Object.keys(next.picks||{}).length}/{data.players.length} picked</span>
                 <span className="hero-chip">
@@ -1192,7 +1234,7 @@
 
     // ── This Race ────────────────────────────────────────────────────────────────
 
-    function RaceTab({ data, update, showToast }) {
+    function RaceTab({ data, update, showToast, schedule }) {
       const next = data.races.find(r => r.status !== "completed");
       const [who, setWho]           = useState("");
       const [driver, setDriver]     = useState("");
@@ -1296,7 +1338,9 @@
             <TrackMap raceId={next.id} />
             <div style={{ fontSize:40, marginBottom:5 }}>{next.flag}</div>
             <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:22, textTransform:"uppercase", letterSpacing:".02em", lineHeight:1.1, color:"var(--hero-ink)", maxWidth:"62%", marginBottom:6 }}>{next.name}</div>
-            <div style={{ fontSize:13, fontWeight:500, color:"var(--hero-sub)", maxWidth:"62%", marginBottom:12 }}>{next.location} · {fmtDate(next.date)}</div>
+            <div style={{ fontSize:13, fontWeight:500, color:"var(--hero-sub)", maxWidth:"62%" }}>{next.location} · {fmtDate(next.date)}</div>
+            <StartTimes race={next} schedule={schedule} />
+            <div style={{ height:12 }} />
             <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
               {next.hasSprint && <span className="hero-chip">Sprint weekend</span>}
               <span className="hero-chip">
@@ -2866,6 +2910,7 @@
       const [menuOpen,  setMenuOpen]  = useState(false);
       const [dbOk,      setDbOk]      = useState(true);
       const [official,  setOfficial]  = useState(null);
+      const [schedule,  setSchedule]  = useState(null);
       const toastTimer = useRef(null);
       const bottomEmailFiredRef   = useRef(null);
       const everyoneEmailFiredRef = useRef(null);
@@ -2874,6 +2919,7 @@
         emailjs.init(EMAILJS_PUBLIC_KEY);
         loadData().then(d => { setData(d); setDbOk(dataIsOk()); setLoaded(true); });
         loadOfficialResults().then(setOfficial);   // read-only; never touches Firestore
+        loadSchedule().then(setSchedule);          // read-only too
         const unsub = subscribeData(d => setData(d));
         const unsubChat = subscribeChat(msgs => setLatestMsg(msgs.length ? msgs[msgs.length-1] : null));
         return () => { unsub(); unsubChat(); };
@@ -3053,8 +3099,8 @@
               </div>
             </div>
             <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
-              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} />}
-              {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} />}
+              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} schedule={schedule} />}
+              {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} schedule={schedule} />}
               {tab==="calendar"  && <CalendarTab  data={data} />}
               {tab==="research"  && <ResearchTab  data={data} />}
               {tab==="chat"      && <ChatTab      players={data.players} />}
