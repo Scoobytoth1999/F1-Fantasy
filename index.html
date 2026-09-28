@@ -2758,15 +2758,23 @@
       const hideAll  = () => setHidden(new Set(F1_TEAMS_2026.map(t => t.name)));
 
       // Build contiguous segments so a DNF leaves a visible gap in the line
+      // One continuous line per driver. A race with no classified finish is a DNF
+      // and drops to P22 (drawn with a hollow marker) instead of breaking the line.
+      // Two exceptions, so absent drivers don't draw a false line along the floor:
+      //  - before a driver's first race (a stand-in who joined mid-season), and
+      //  - after the last race of a driver currently marked Out on the Grid.
+      const outDrivers = new Set(data.inactiveDrivers || []);
       function segmentsFor(driver) {
-        const segs = []; let cur = [];
-        cols.forEach((r, i) => {
-          const pos = results[r.id][driver];
-          if (pos) cur.push({ x: xAt(i), y: yAt(pos), pos, race: r });
-          else { if (cur.length) segs.push(cur); cur = []; }
-        });
-        if (cur.length) segs.push(cur);
-        return segs;
+        const pos = cols.map(r => results[r.id][driver] || null);
+        const first = pos.findIndex(Boolean);
+        if (first < 0) return [];
+        let end = cols.length - 1;
+        if (outDrivers.has(driver)) { while (end > first && !pos[end]) end--; }
+        const pts = [];
+        for (let i = first; i <= end; i++) {
+          pts.push({ x: xAt(i), y: yAt(pos[i] || 22), pos: pos[i], dnf: !pos[i], race: cols[i] });
+        }
+        return [pts];
       }
 
       // Season summary for the legend: best finish + races finished
@@ -2781,7 +2789,7 @@
             <ST>🔬 Driver Research</ST>
             <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:12 }}>
               Every driver's finishing position, race by race. Lines climb toward the top as a driver
-              finishes higher. A break in a line is a DNF or a race they didn't start.
+              finishes higher. A DNF drops the line to the bottom, shown with a hollow dot.
               Tap a team to hide it. Tap drivers to highlight them — tap several to compare.
             </div>
 
@@ -2844,7 +2852,8 @@
                         ))}
                         {segmentsFor(d).flat().map((pt,pi) => (
                           <circle key={pi} cx={pt.x} cy={pt.y} r={on ? 5 : 3.4}
-                            fill={meta.color} stroke="var(--card)" strokeWidth={1.2}
+                            fill={pt.dnf ? "var(--card)" : meta.color}
+                            stroke={pt.dnf ? meta.color : "var(--card)"} strokeWidth={pt.dnf ? 1.8 : 1.2}
                             style={{ cursor:"pointer" }}
                             onMouseEnter={() => setHover({ d, pos:pt.pos, race:pt.race, x:pt.x, y:pt.y })}
                             onMouseLeave={() => setHover(null)}
@@ -2860,7 +2869,7 @@
                     background:"var(--card)", border:`1px solid ${C.border2 || C.border}`, borderRadius:9,
                     padding:"7px 10px", boxShadow:"0 8px 22px rgba(0,0,0,.16)", whiteSpace:"nowrap" }}>
                     <div style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:12, color:DRIVER_META[hover.d].color }}>{hover.d}</div>
-                    <div style={{ fontSize:11, color:"var(--text)", fontWeight:600 }}>P{hover.pos} · {hover.race.flag} {hover.race.location}</div>
+                    <div style={{ fontSize:11, color:"var(--text)", fontWeight:600 }}>{hover.pos ? `P${hover.pos}` : "DNF"} · {hover.race.flag} {hover.race.location}</div>
                     <div style={{ fontSize:10, color:C.muted }}>{DRIVER_META[hover.d].team}</div>
                   </div>
                 )}
