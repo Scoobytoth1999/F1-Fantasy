@@ -2877,6 +2877,28 @@
             </div>
           </Card>
 
+          {/* ── Points reference: what each finishing position is worth ── */}
+          <Card>
+            <ST>Points per finish</ST>
+            {[["Grand Prix", GP_PTS], ["Sprint", SPR_PTS]].map(([label, table]) => (
+              <div key={label} style={{ marginBottom: label === "Grand Prix" ? 16 : 0 }}>
+                <Lbl>{label}</Lbl>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(54px, 1fr))", gap:6 }}>
+                  {table.map((pts, i) => (
+                    <div key={i} style={{ borderRadius:9, padding:"7px 4px 6px", textAlign:"center",
+                      background: i === 0 ? C.red : C.card,
+                      border:`1px solid ${i < 3 ? C.red : C.border}` }}>
+                      <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em",
+                        color: i === 0 ? "rgba(255,255,255,.85)" : i < 3 ? C.red : C.dim }}>P{i+1}</div>
+                      <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:18, lineHeight:1.15,
+                        color: i === 0 ? "#fff" : "var(--text)" }}>{pts}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </Card>
+
           {/* ── Driver legend / season summary ── */}
           <Card>
             <ST color={C.teal}>Drivers — {cols.length} race{cols.length===1?"":"s"} on record</ST>
