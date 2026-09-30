@@ -187,6 +187,29 @@
     .hero-track .line { stroke:var(--track, #FFFFFF); stroke-width:2.6px; }
     [data-team="mclaren"]     { --track:#FF8000; --track-halo:rgba(0,0,0,.35); }   /* sits on the anthracite block */
     [data-team="racingbulls"] { --track:#FFFFFF; --track-halo:#0F1A4D; }          /* crosses blue, red and white */
+    /* Theme picker */
+    .theme-sheet-overlay { position:fixed; inset:0; z-index:300; background:rgba(15,15,20,.45); display:flex; align-items:flex-end; justify-content:center; }
+    .theme-sheet {
+      width:100%; max-width:560px; max-height:88vh; overflow-y:auto; background:var(--card);
+      border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+      box-shadow:0 -12px 40px rgba(0,0,0,.2); animation:fadeUp .18s ease;
+    }
+    @media (min-width:600px) { .theme-sheet-overlay { align-items:center; } .theme-sheet { border-radius:18px; } }
+    .theme-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(112px, 1fr)); gap:10px; }
+    .theme-opt {
+      display:flex; flex-direction:column; gap:6px; padding:6px; border-radius:12px; cursor:pointer;
+      background:transparent; border:2px solid transparent; text-align:left; font-family:'DM Sans',sans-serif;
+    }
+    .theme-opt[aria-pressed="true"] { border-color:var(--text); }
+    .theme-opt .sw { height:58px; border-radius:9px; background:var(--hero); position:relative; overflow:hidden; border:1px solid var(--border); }
+    .theme-opt .sw::after { content:''; position:absolute; left:0; right:0; bottom:0; height:6px;
+      background:repeating-conic-gradient(#15171A 0 25%, #FFFFFF 0 50%) 0 0 / 6px 6px; }
+    .theme-opt .nm { font-size:12.5px; font-weight:700; color:var(--text); padding:0 2px; }
+    .theme-label-btn {
+      background:none; border:none; padding:4px 2px; margin-left:2px; cursor:pointer;
+      font-family:'DM Sans',sans-serif; font-size:9px; color:var(--accent); font-weight:700;
+      letter-spacing:.14em; text-transform:uppercase; white-space:nowrap;
+    }
     .checker-flag {
       width:18px; height:18px; border-radius:3px; flex-shrink:0;
       background:repeating-conic-gradient(#15171A 0 25%, #FFFFFF 0 50%) 0 0 / 6px 6px;
@@ -296,6 +319,23 @@
     ];
     // ?team=<id> in the URL pins one livery (no rotation) — for previewing themes.
     const FORCED_TEAM = PALETTES.find(p => p.id === new URLSearchParams(window.location.search).get("team")) || null;
+
+    // Each person can pin a theme on their own device. Stored in the browser only,
+    // never in Firestore, so choosing a theme can't touch league data.
+    // Precedence: ?team= link  >  saved choice  >  rotate (the default).
+    const THEME_KEY = "f1f-theme";
+    function readSavedTheme() {
+      try { return PALETTES.find(p => p.id === localStorage.getItem(THEME_KEY)) || null; }
+      catch(e) { return null; }   // private browsing / storage blocked → just rotate
+    }
+    function writeSavedTheme(id) {
+      try { localStorage.setItem(THEME_KEY, id); } catch(e) { /* not persisted; still applies this visit */ }
+    }
+
+    // Temporary "pick your theme" announcement on the home page. Dismissible, and
+    // it switches itself off after this date even if the code isn't removed yet.
+    const THEME_BANNER_UNTIL = "2026-10-03";
+    const THEME_BANNER_KEY   = "f1f-theme-banner-dismissed";
     // Pick a random palette, never the same one twice in a row.
     function nextTeam(currentId) {
       const pool = PALETTES.filter(p => p.id !== currentId);
@@ -930,7 +970,15 @@
 
     // ── Standings ────────────────────────────────────────────────────────────────
 
-        function StandingsTab({ data, latestMsg, setTab, schedule }) {
+        function StandingsTab({ data, latestMsg, setTab, schedule, onOpenTheme }) {
+      const [bannerOff, setBannerOff] = useState(() => {
+        try { return localStorage.getItem(THEME_BANNER_KEY) === "1"; } catch(e) { return false; }
+      });
+      const showThemeBanner = !bannerOff && new Date() < parseDay(THEME_BANNER_UNTIL);
+      function dismissBanner() {
+        try { localStorage.setItem(THEME_BANNER_KEY, "1"); } catch(e) {}
+        setBannerOff(true);
+      }
       const [replyWho,  setReplyWho]  = useState("");
       const [replyText, setReplyText] = useState("");
       const [replying,  setReplying]  = useState(false);
@@ -966,6 +1014,20 @@
 
       return (
         <div className="anim">
+
+          {/* TEMPORARY announcement — remove after a day or two (auto-hides after THEME_BANNER_UNTIL). */}
+          {showThemeBanner && (
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 12px 12px 16px", marginBottom:14, borderRadius:14,
+              background:"var(--card)", border:`1px solid ${C.border}`, borderLeft:`4px solid ${C.red}`, boxShadow:"0 6px 18px rgba(0,0,0,.06)" }}>
+              <div style={{ fontSize:22 }}>🎨</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:14, marginBottom:2 }}>New: pick your team theme</div>
+                <div style={{ fontSize:12, color:C.dim, lineHeight:1.5 }}>Choose any of the 11 liveries, or keep them rotating. Tap the team name at the top, or ☰ → Theme.</div>
+              </div>
+              <Btn onClick={onOpenTheme} style={{ fontSize:10, padding:"8px 11px", flexShrink:0 }}>Choose</Btn>
+              <button onClick={dismissBanner} aria-label="Dismiss" style={{ width:32, height:32, flexShrink:0, border:"none", background:"none", cursor:"pointer", fontSize:15, color:C.dim }}>✕</button>
+            </div>
+          )}
 
           {next && (
             <div className="hero-band" style={{ padding:"22px 20px 28px" }}>
@@ -2929,12 +2991,46 @@
       );
     }
 
+    // ── Theme picker ────────────────────────────────────────────────────────────
+    // Each swatch carries data-team, so the livery CSS variables resolve to THAT
+    // team inside the swatch — it's a live miniature of the real hero band.
+    function ThemePicker({ current, rotating, onPick, onClose }) {
+      return (
+        <div className="theme-sheet-overlay" onClick={onClose}>
+          <div className="theme-sheet" role="dialog" aria-modal="true" aria-label="Choose your theme" onClick={e => e.stopPropagation()}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+              <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:18 }}>Choose your theme</div>
+              <button onClick={onClose} aria-label="Close" style={{ width:36, height:36, borderRadius:9, border:`1px solid ${C.border}`, background:"var(--field)", cursor:"pointer", fontSize:16, color:"var(--text)" }}>✕</button>
+            </div>
+            <div style={{ fontSize:12, color:C.dim, lineHeight:1.6, marginBottom:14 }}>
+              Saved on this device only. Pick a team to keep it, or Rotate to get a different team on every tab.
+            </div>
+            <div className="theme-grid">
+              <button className="theme-opt" aria-pressed={rotating} onClick={() => onPick("rotate")}>
+                <div className="sw" style={{ background:"linear-gradient(115deg, #C1121F 0 20%, #15191D 20% 40%, #1B2A52 40% 60%, #FF8000 60% 80%, #00594F 80% 100%)" }} />
+                <div className="nm">🔀 Rotate</div>
+              </button>
+              {PALETTES.map(p => (
+                <button key={p.id} className="theme-opt" data-team={p.id}
+                  aria-pressed={!rotating && current === p.id} onClick={() => onPick(p.id)}>
+                  <div className="sw" />
+                  <div className="nm">{!rotating && current === p.id ? "✓ " : ""}{p.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ── Root ──────────────────────────────────────────────────────────────────────
 
     function App() {
       const [data,      setData]      = useState(null);
       const [tab,       setTab]       = useState("standings");
-      const [team,      setTeam]      = useState(() => FORCED_TEAM || nextTeam(null));
+      const [themePref, setThemePref] = useState(() => readSavedTheme());   // null = rotate
+      const [team,      setTeam]      = useState(() => FORCED_TEAM || readSavedTheme() || nextTeam(null));
+      const [pickerOpen, setPickerOpen] = useState(false);
       const [loaded,    setLoaded]    = useState(false);
       const [toast,     setToast]     = useState("");
       const [latestMsg, setLatestMsg] = useState(null);
@@ -2962,9 +3058,24 @@
       useEffect(() => { applyTeam(team.id); }, [team]);
 
       function changeTab(id) {
-        if (id !== tab && !FORCED_TEAM) setTeam(t => nextTeam(t.id));
+        if (id !== tab && !FORCED_TEAM && !themePref) setTeam(t => nextTeam(t.id));
         setTab(id);
         setMenuOpen(false);
+      }
+
+      function openPicker() { setMenuOpen(false); setPickerOpen(true); }
+      function chooseTheme(id) {
+        writeSavedTheme(id);
+        if (id === "rotate") {
+          setThemePref(null);
+          showToast("Rotating themes — a new team on every tab 🔀");
+        } else {
+          const p = PALETTES.find(x => x.id === id);
+          setThemePref(p);
+          if (!FORCED_TEAM) setTeam(p);
+          showToast(`${p.name} theme saved on this device 🎨`);
+        }
+        setPickerOpen(false);
       }
 
       function goHome() {
@@ -2973,11 +3084,11 @@
       }
 
       useEffect(() => {
-        if (!menuOpen) return;
-        const onKey = e => { if (e.key === "Escape") setMenuOpen(false); };
+        if (!menuOpen && !pickerOpen) return;
+        const onKey = e => { if (e.key === "Escape") { setMenuOpen(false); setPickerOpen(false); } };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-      }, [menuOpen]);
+      }, [menuOpen, pickerOpen]);
 
       const update = useCallback(async (newData) => {
         setData(newData);
@@ -3074,6 +3185,9 @@
 
       return (
         <>
+          {pickerOpen && (
+            <ThemePicker current={team.id} rotating={!themePref} onPick={chooseTheme} onClose={() => setPickerOpen(false)} />
+          )}
           {toast && (
             <div style={{ position:"fixed", top:14, right:14, zIndex:999, background:"var(--surface2)", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 15px", fontFamily:"DM Sans,sans-serif", fontSize:13, color:"var(--text)", boxShadow:"0 8px 28px rgba(0,0,0,.18)", maxWidth:270 }}>
               {toast}
@@ -3089,18 +3203,19 @@
               </div>
             )}
             <div style={{ background:"color-mix(in srgb, var(--card) 92%, transparent)", backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 16px", position:"sticky", top:0, zIndex:100 }}>
-              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", height:56 }}>
+              <div style={{ maxWidth:680, margin:"0 auto", display:"flex", alignItems:"center", height:56 }}>
                 {/* Title doubles as a Home button: back to Standings, scrolled to the top. */}
                 <div
                   role="button" tabIndex={0} aria-label="Go to home (Standings)"
                   onClick={goHome}
                   onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), goHome())}
-                  style={{ display:"flex", alignItems:"baseline", gap:9, cursor:"pointer", userSelect:"none", WebkitTapHighlightColor:"transparent" }}>
+                      style={{ display:"flex", alignItems:"baseline", gap:9, cursor:"pointer", userSelect:"none", WebkitTapHighlightColor:"transparent" }}>
                   <span style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:21, color:C.red, letterSpacing:"-.02em" }}>F1</span>
                   <span style={{ fontFamily:"Syne,sans-serif", fontWeight:700, fontSize:17, letterSpacing:"-.01em" }}>FANTASY</span>
                   <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:10, color:C.dim, fontWeight:400, letterSpacing:".12em", textTransform:"uppercase" }}>2026</span>
-                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:9, color:C.red, fontWeight:600, letterSpacing:".14em", textTransform:"uppercase", paddingLeft:2 }}>{team.name}</span>
                 </div>
+                <button className="theme-label-btn" onClick={openPicker} aria-label={`Theme: ${team.name}. Change theme`}>{team.name} ▾</button>
+                <div style={{ flex:1 }} />
                 <div style={{ position:"relative" }}>
                   <button
                     className={`menu-btn${menuOpen ? " open" : ""}`}
@@ -3123,6 +3238,10 @@
                             <span className="ico">{icon}</span>{label}
                           </button>
                         ))}
+                        <div style={{ height:1, background:C.border, margin:"4px 6px" }} />
+                        <button className="menu-item" onClick={openPicker}>
+                          <span className="ico">🎨</span>Theme
+                        </button>
                       </div>
                     </>
                   )}
@@ -3130,7 +3249,7 @@
               </div>
             </div>
             <div style={{ maxWidth:680, margin:"0 auto", padding:"18px 14px 60px" }}>
-              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} schedule={schedule} />}
+              {tab==="standings" && <StandingsTab data={data} latestMsg={latestMsg} setTab={changeTab} schedule={schedule} onOpenTheme={openPicker} />}
               {tab==="race"      && <RaceTab      data={data} update={update} showToast={showToast} schedule={schedule} />}
               {tab==="calendar"  && <CalendarTab  data={data} />}
               {tab==="research"  && <ResearchTab  data={data} />}
