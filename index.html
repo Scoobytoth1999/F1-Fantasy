@@ -343,10 +343,11 @@
       try { localStorage.setItem(THEME_KEY, id); } catch(e) { /* not persisted; still applies this visit */ }
     }
 
-    // Temporary "pick your theme" announcement on the home page. Dismissible, and
-    // it switches itself off after this date even if the code isn't removed yet.
-    const THEME_BANNER_UNTIL = "2026-10-03";
-    const THEME_BANNER_KEY   = "f1f-theme-banner-dismissed";
+    // Temporary "passing map" announcement on the home page. Dismissible (per
+    // device), only shown while the next race has a passing map, and it switches
+    // itself off after this date even if the code isn't removed yet.
+    const NEWS_BANNER_UNTIL = "2026-10-26";
+    const NEWS_BANNER_KEY   = "f1f-passing-map-banner-dismissed";
     // Pick a random palette, never the same one twice in a row.
     function nextTeam(currentId) {
       const pool = PALETTES.filter(p => p.id !== currentId);
@@ -1209,11 +1210,11 @@
 
         function StandingsTab({ data, latestMsg, setTab, schedule, onOpenTheme }) {
       const [bannerOff, setBannerOff] = useState(() => {
-        try { return localStorage.getItem(THEME_BANNER_KEY) === "1"; } catch(e) { return false; }
+        try { return localStorage.getItem(NEWS_BANNER_KEY) === "1"; } catch(e) { return false; }
       });
-      const showThemeBanner = !bannerOff && new Date() < parseDay(THEME_BANNER_UNTIL);
+      const [passMapOpen, setPassMapOpen] = useState(false);
       function dismissBanner() {
-        try { localStorage.setItem(THEME_BANNER_KEY, "1"); } catch(e) {}
+        try { localStorage.setItem(NEWS_BANNER_KEY, "1"); } catch(e) {}
         setBannerOff(true);
       }
       const [replyWho,  setReplyWho]  = useState("");
@@ -1223,6 +1224,8 @@
       const order  = pickOrder(data.players, data.races);
       const next   = data.races.find(r => r.status !== "completed");
       const last   = [...data.races].reverse().find(r => r.status === "completed" && !r.noLeague);
+      const passMapFile = next && OVERTAKE_FILES[next.id];
+      const showNewsBanner = !bannerOff && passMapFile && new Date() < parseDay(NEWS_BANNER_UNTIL);
       const nextFFA = next && new Date() >= freeForAllTime(next) && next.status !== "locked";
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
@@ -1252,19 +1255,20 @@
       return (
         <div className="anim">
 
-          {/* TEMPORARY announcement — remove after a day or two (auto-hides after THEME_BANNER_UNTIL). */}
-          {showThemeBanner && (
+          {/* TEMPORARY announcement — auto-hides after NEWS_BANNER_UNTIL; safe to delete after that. */}
+          {showNewsBanner && (
             <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 12px 12px 16px", marginBottom:14, borderRadius:14,
               background:"var(--card)", border:`1px solid ${C.border}`, borderLeft:`4px solid ${C.red}`, boxShadow:"0 6px 18px rgba(0,0,0,.06)" }}>
-              <div style={{ fontSize:22 }}>🎨</div>
+              <div style={{ fontSize:22 }}>🗺️</div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:14, marginBottom:2 }}>New: pick your team theme</div>
-                <div style={{ fontSize:12, color:C.dim, lineHeight:1.5 }}>Choose any of the 11 liveries, or keep them rotating. Tap the team name at the top, or ☰ → Theme.</div>
+                <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:14, marginBottom:2 }}>New: see where they pass</div>
+                <div style={{ fontSize:12, color:C.dim, lineHeight:1.5 }}>Tap the track below to see overtakes at every turn.</div>
               </div>
-              <Btn onClick={onOpenTheme} style={{ fontSize:10, padding:"8px 11px", flexShrink:0 }}>Choose</Btn>
+              <Btn onClick={() => setPassMapOpen(true)} style={{ fontSize:10, padding:"8px 11px", flexShrink:0 }}>Show me</Btn>
               <button onClick={dismissBanner} aria-label="Dismiss" style={{ width:32, height:32, flexShrink:0, border:"none", background:"none", cursor:"pointer", fontSize:15, color:C.dim }}>✕</button>
             </div>
           )}
+          {passMapOpen && passMapFile && <OvertakeSheet file={passMapFile} onClose={() => setPassMapOpen(false)} />}
 
           {next && (
             <div className="hero-band" style={{ padding:"22px 20px 28px" }}>
