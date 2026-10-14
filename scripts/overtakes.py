@@ -1,25 +1,28 @@
 """
-Derive on-track overtakes per corner for Circuit of the Americas (US GP)
-from F1 timing/position data via FastF1, and write overtakes-cota.json.
+On-track overtakes for every Grand Prix since 2023, from OpenF1 timing data.
 
-Method (one race):
-  1. Reference lap (fastest lap telemetry) gives the track line: X, Y and
-     distance-from-line in metres. Corner apexes come from FastF1 circuit info.
-  2. Every car's ~4 Hz position samples are snapped to the nearest point on
-     the reference line -> distance into the lap. Unwrapping that across laps
-     gives cumulative race progress P(t) in metres.
-  3. All cars are resampled onto a common 0.5 s grid. A pass is a sign change
-     of P_a - P_b for a pair of cars (same-lap only: lapping a backmarker is
-     P_a - P_b crossing a full lap, not zero, so it is never counted).
-  4. Flicker (order changing and changing back within 3 s) is discarded.
-  5. Excluded: either car in the pit window, under SC/VSC/red flag, the passed
-     car retiring within 90 s, or after the winner takes the flag.
-     Kept but tagged: lap 1 ("lap1") and the lap after a SC/VSC ends ("restart").
-  6. Each pass is attributed to a corner: the corner whose apex it completed
-     within EXIT_WINDOW metres after, otherwise the next corner ahead
-     (a DRS pass finished on the straight counts for the corner it was into).
+Counting (per race):
+  * A pass is a change in the official running order between two cars from
+    one lap to the next (lap 1 compares against the grid). Lapping a
+    backmarker never changes running order, so it is never counted.
+  * Excluded: pit in/out laps for either car, passes under SC / VSC / red
+    flag, and passes on a car in its retirement lap.
+  * Tagged, shown only with the app's "include" toggle: lap 1 ("lap1"), the
+    lap after a safety car ends ("restart"), and passes on a car that lost 4+
+    places in one lap - a spin or problem ("incident"). Everything else is
+    "green": a racing pass.
 
-Usage: python scripts/overtakes.py [--years 2022 2023 2024 2025] [--out overtakes-cota.json]
+Locating (per pass):
+  * Each car's ~4 Hz X/Y position is snapped to a reference lap line to get
+    distance-into-lap; the moment the two cars' race distance crosses is the
+    pass point. It is credited to the corner it completed within 80 m after,
+    otherwise the corner it was heading into (so a DRS pass finished on a
+    straight counts for the braking zone it was into).
+
+Usage:
+  python scripts/overtakes.py --plan [--years 2025 2026] [--force]   # matrix JSON
+  python scripts/overtakes.py --race '<matrix item JSON>'              # one race
+  python scripts/overtakes.py --build                                  # merge
 """
 from __future__ import annotations
 
@@ -31,7 +34,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-EVENT = "United States Grand Prix"
 GRID_DT = 0.5          # s, common time grid
 FLICKER_S = 3.0        # s, order swaps reverted within this are noise
 PIT_BUFFER_IN = 15.0   # s before pit entry treated as pit-affected
@@ -293,6 +295,24 @@ def analyse(race: dict) -> dict:
     }
 
 
+def neutral_events(rc: list[dict], med_lap: float) -> list[tuple[float, str]]:
+    """SC / VSC / red-flag start and end times from OpenF1 race-control messages."""
+    ev, red = [], False
+    for m in sorted(rc, key=lambda m: m["date"]):
+        msg, flag, t = (m.get("message") or "").upper(), m.get("flag"), iso(m["date"])
+        if "SAFETY CAR DEPLOYED" in msg:                 # also matches VIRTUAL SAFETY CAR DEPLOYED
+            ev.append((t, "start"))
+        elif flag == "RED" and "PIT EXIT" not in msg:
+            ev.append((t, "start")); red = True
+        elif "VIRTUAL SAFETY CAR ENDING" in msg or "VSC ENDING" in msg:
+            ev.append((t + 10, "end")); red = False
+        elif "SAFETY CAR IN THIS LAP" in msg:
+            ev.append((t + med_lap * 0.8, "end")); red = False
+        elif red and (flag == "GREEN" or ("RESUME" in msg and "RACE" in msg)):
+            ev.append((t + med_lap, "end")); red = False   # rolling/standing restart lap
+    return ev
+
+
 def neutral_windows(events, t_end, med_lap):
     """events: [(t, kind)] with kind 'start' or 'end'. Returns neutral, restart windows."""
     neutral, restart, open_t = [], [], None
@@ -306,84 +326,32 @@ def neutral_windows(events, t_end, med_lap):
     return neutral, restart
 
 
-# ---------------------------------------------------------- source: FastF1
-
-def td(x) -> float:
-    return x.total_seconds() if x is not None and not (isinstance(x, float) and math.isnan(x)) \
-        and str(x) != "NaT" else float("nan")
-
-
-def load_fastf1(year: int) -> dict:
-    import fastf1
-    s = fastf1.get_session(year, EVENT, "R")
-    s.load(laps=True, telemetry=True, weather=False, messages=True)
-    if not (len(s.laps) and s.pos_data):
-        raise RuntimeError(f"{year}: FastF1 timing data unavailable")
-    ci = s.get_circuit_info()
-    ref = s.laps.pick_fastest().get_telemetry()
-    rx, ry, rd = densify(ref["X"].to_numpy(float), ref["Y"].to_numpy(float))
-    res, laps = s.results, s.laps
-    abbr = {str(r.DriverNumber): str(r.Abbreviation) for r in res.itertuples()}
-    finished = {str(r.DriverNumber): (str(r.Status) == "Finished" or "Lap" in str(r.Status))
-                for r in res.itertuples()}
-    winner = str(res.sort_values("Position").iloc[0].DriverNumber)
-    t_end = np.nanmax([td(x) for x in laps.pick_drivers(winner)["Time"]])
-    t_start = np.nanmin([td(x) for x in laps[laps["LapNumber"] == 1]["LapStartTime"]])
-    med_lap = float(np.nanmedian([td(x) for x in laps["LapTime"]]))
-
-    ev, prev = [], "1"
-    for r in s.track_status.itertuples():
-        st = str(r.Status)
-        if st in NEUTRAL and prev not in NEUTRAL:
-            ev.append((td(r.Time), "start"))
-        elif st not in NEUTRAL and prev in NEUTRAL:
-            ev.append((td(r.Time), "end"))
-        prev = st
-    neutral, restart = neutral_windows(ev, t_end, med_lap)
-
-    lp = {}
-    for drv in abbr:
-        lp[drv] = {}
-        for r in laps.pick_drivers(drv).itertuples():
-            p = None if (isinstance(r.Position, float) and math.isnan(r.Position)) else float(r.Position)
-            lp[drv][int(r.LapNumber)] = (td(r.LapStartTime), td(r.Time), p, not math.isnan(td(r.PitInTime)))
-    grid_pos = {}
-    for r in res.itertuples():
-        g = float(r.GridPosition) if not math.isnan(float(r.GridPosition)) else 0.0
-        grid_pos[str(r.DriverNumber)] = g if g > 0 else 99.0
-    samples = {}
-    for drv, pos in s.pos_data.items():
-        m = pos["Status"].to_numpy() == "OnTrack"
-        samples[str(drv)] = (pos["SessionTime"].dt.total_seconds().to_numpy()[m],
-                             pos["X"].to_numpy(float)[m], pos["Y"].to_numpy(float)[m])
-    corners = [(f"{int(n)}{l or ''}", float(x), float(y))
-               for n, l, x, y in zip(ci.corners["Number"], ci.corners["Letter"], ci.corners["X"], ci.corners["Y"])]
-    return dict(ref_x=rx, ref_y=ry, ref_d=rd, corners=corners, rotation=float(ci.rotation),
-                abbr=abbr, finished=finished, samples=samples, laps=lp, grid_pos=grid_pos,
-                neutral=neutral, restart=restart, t_start=t_start, t_end=t_end, source="FastF1")
-
-
 # ---------------------------------------------------------- source: OpenF1
 
 OPENF1 = "https://api.openf1.org/v1/"
 MULTIVIEWER = "https://api.multiviewer.app/api/v1/circuits/{key}/{year}"
 
 
-def get_json(url: str, tries=5):
+def get_json(url: str, tries=6):
+    """GET JSON from OpenF1/MultiViewer, staying under OpenF1's free limit (30/min)."""
     import time, urllib.request, urllib.error
     for i in range(tries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "f1-fantasy-overtakes/1.0"})
-            with urllib.request.urlopen(req, timeout=120) as r:
-                time.sleep(0.4)          # stay under OpenF1's free rate limit
-                return json.load(r)
+            req = urllib.request.Request(url, headers={"User-Agent": "f1-fantasy-overtakes/1.1"})
+            with urllib.request.urlopen(req, timeout=180) as r:
+                data = json.load(r)
+            time.sleep(2.1)
+            return data
         except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return []                 # OpenF1 answers "no rows" with 404
             if e.code in (429, 500, 502, 503, 504) and i < tries - 1:
-                time.sleep(5 * (i + 1)); continue
+                wait = float(e.headers.get("Retry-After") or 0) or 15 * (i + 1)
+                time.sleep(min(wait, 90)); continue
             raise
-        except urllib.error.URLError:
+        except (urllib.error.URLError, TimeoutError):
             if i < tries - 1:
-                time.sleep(5 * (i + 1)); continue
+                time.sleep(10 * (i + 1)); continue
             raise
 
 
@@ -391,12 +359,8 @@ def iso(s: str) -> float:
     return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
 
 
-def load_openf1(year: int) -> dict:
-    sess = get_json(f"{OPENF1}sessions?year={year}&session_name=Race&location=Austin")
-    if not sess:
-        raise RuntimeError(f"{year}: no OpenF1 race session for Austin")
-    k = sess[0]["session_key"]
-    circ = get_json(MULTIVIEWER.format(key=sess[0]["circuit_key"], year=year))
+def load_openf1(k: int, circuit_key: int, year: int) -> dict:
+    circ = get_json(MULTIVIEWER.format(key=circuit_key, year=year))
 
     drivers = get_json(f"{OPENF1}drivers?session_key={k}")
     abbr = {str(d["driver_number"]): d["name_acronym"] for d in drivers}
@@ -454,17 +418,7 @@ def load_openf1(year: int) -> dict:
     winner = next(str(r["driver_number"]) for r in results if r.get("position") == 1)
     t_end = max(s1 for _, s1 in lap_win[winner].values())
 
-    ev = []
-    for m in rc:
-        msg, t = (m.get("message") or "").upper(), iso(m["date"])
-        if ("SAFETY CAR DEPLOYED" in msg) or (m.get("flag") == "RED"):
-            ev.append((t, "start"))
-        elif "VIRTUAL SAFETY CAR ENDING" in msg or "VSC ENDING" in msg:
-            ev.append((t + 10, "end"))
-        elif "SAFETY CAR IN THIS LAP" in msg:
-            ev.append((t + med_lap * 0.8, "end"))
-        elif "RESUME" in msg and "RACE" in msg:
-            ev.append((t, "end"))
+    ev = neutral_events(rc, med_lap)
     neutral, restart = neutral_windows(ev, t_end, med_lap)
 
     # reference line: fastest clean lap's location samples
@@ -491,119 +445,155 @@ def load_openf1(year: int) -> dict:
                for c in circ["corners"]]
     return dict(ref_x=rx, ref_y=ry, ref_d=rd, corners=corners, rotation=float(circ.get("rotation", 0)),
                 abbr=abbr, finished=finished, samples=samples, laps=lp, grid_pos=grid_pos,
-                neutral=neutral, restart=restart, t_start=t_start, t_end=t_end, source="OpenF1")
+                neutral=neutral, restart=restart, t_start=t_start, t_end=t_end, source="OpenF1",
+                rc_counts={"sc_or_vsc": sum(1 for m in rc if "SAFETY CAR DEPLOYED" in (m.get("message") or "").upper()),
+                           "red": sum(1 for m in rc if m.get("flag") == "RED")})
 
 
-def analyse_year(year: int) -> dict:
-    """FastF1 for 2022 (OpenF1 starts in 2023); OpenF1 from 2023 on."""
-    race = load_fastf1(year) if year < 2023 else load_openf1(year)
-    return analyse(race)
+# --------------------------------------------------------------- orchestration
+#
+#   --plan   list finished Grands Prix (2023+) not yet analysed -> GitHub matrix JSON
+#   --race   analyse one race (by OpenF1 session key) -> overtakes/races/<year>-<slug>.json
+#   --build  merge every race file -> overtakes-<slug>.json for MAP_CIRCUITS
+#            + overtakes-f1.json (per-race totals for the whole grid, for F1 averages)
+
+RACES_DIR = "overtakes/races"
+FIRST_YEAR = 2023                      # OpenF1 coverage starts here
+# Circuits that get a passing map in the app (OpenF1 circuit_short_name -> file slug)
+MAP_CIRCUITS = {
+    "Austin": "austin", "Mexico City": "mexico-city", "Interlagos": "interlagos",
+    "Las Vegas": "las-vegas", "Lusail": "lusail", "Yas Marina Circuit": "yas-marina",
+}
 
 
-def combine(results: dict, out_path: str, previous: str | None = None) -> int:
-    """Merge per-year results into one file and print the summary tables.
+def slugify(name: str) -> str:
+    import re
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
-    Years missing from `results` are carried over from `previous` (the last
-    committed file), so one failed download doesn't erase a year.
-    """
+
+def race_file(year: int, circuit: str) -> str:
+    return f"{RACES_DIR}/{year}-{slugify(circuit)}.json"
+
+
+def plan(years: list[int], force: bool = False) -> list[dict]:
     import os
-    prev = {}
-    if previous and os.path.exists(previous):
-        with open(previous) as f:
-            prev = json.load(f)
-    out = {"circuit": "Circuit of the Americas", "event": EVENT,
-           "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "method": "Passes counted from the official lap chart (relative order flips between "
-                     "laps); located on track with FastF1 position data. Pit in/out laps, "
-                     "SC/VSC/red and retiring cars excluded; lap 1 and restart laps tagged.",
-           "races": {}}
-    for y in sorted(results):
-        r = dict(results[y])
-        if "track" not in out:
-            out["track"], out["corners"], out["lapLength"] = r["track"], r["corners"], r["lapLength"]
-        for k in ("track", "corners", "lapLength"):
-            r.pop(k, None)
-        out["races"][str(y)] = r
-    for y, r in prev.get("races", {}).items():
-        if y not in out["races"] and r.get("passes") is not None:
-            print(f"{y}: not re-fetched this run; keeping previous result")
-            out["races"][y] = r
-            if "track" not in out and "track" in prev:
-                out["track"], out["corners"], out["lapLength"] = prev["track"], prev["corners"], prev["lapLength"]
-    out["races"] = dict(sorted(out["races"].items()))
-    for r in out["races"].values():
-        tag_incidents(r["passes"])
+    now = datetime.now(timezone.utc).timestamp()
+    todo = []
+    for y in years:
+        meetings = {m["meeting_key"]: m for m in get_json(f"{OPENF1}meetings?year={y}")}
+        for s in get_json(f"{OPENF1}sessions?year={y}&session_name=Race"):
+            if s.get("session_type") != "Race" or not s.get("date_end"):
+                continue
+            if iso(s["date_end"]) > now - 3 * 3600:          # not finished (or data still settling)
+                continue
+            circuit = s["circuit_short_name"]
+            if not force and os.path.exists(race_file(y, circuit)):
+                continue
+            m = meetings.get(s["meeting_key"], {})
+            todo.append({"key": s["session_key"], "circuit_key": s["circuit_key"], "year": y,
+                         "circuit": circuit, "meeting": m.get("meeting_name", circuit),
+                         "date": s["date_start"][:10]})
+    return todo
 
-    n_races = len(out["races"])
-    if not n_races:
-        print("No races analysed.")
-        return 1
-    with open(out_path, "w") as f:
+
+def run_race(item: dict) -> str:
+    import os
+    race = load_openf1(int(item["key"]), int(item["circuit_key"]), int(item["year"]))
+    r = analyse(race)
+    r["rc_counts"] = race.get("rc_counts", {})
+    out = {k: item[k] for k in ("key", "year", "circuit", "meeting", "date")}
+    out["result"] = r
+    os.makedirs(RACES_DIR, exist_ok=True)
+    path = race_file(item["year"], item["circuit"])
+    with open(path, "w") as f:
         json.dump(out, f, separators=(",", ":"))
+    c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart")}
+    print(f"{item['year']} {item['meeting']}: {c} dropped={r['dropped']} rc={r['rc_counts']}")
+    return path
 
-    lines = ["| Year | Green | Lap 1 | Restart | Incident | Under SC (dropped) / no location |",
-             "|---|---|---|---|---|---|"]
-    by_turn, by_turn_all, tot_g, tot_all = {}, {}, 0, 0
-    for y, r in out["races"].items():
-        c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart", "incident")}
-        dr = r["dropped"]
-        lines.append(f"| {y} | {c['green']} | {c['lap1']} | {c['restart']} | {c['incident']} "
-                     f"| {dr['neutral']} / {dr['unlocated']} |")
-        tot_g += c["green"]; tot_all += sum(c.values())
-        for p in r["passes"]:
-            by_turn_all[p["turn"]] = by_turn_all.get(p["turn"], 0) + 1
-            if p["cat"] == "green":
-                by_turn[p["turn"]] = by_turn.get(p["turn"], 0) + 1
-    lines += ["", f"Avg per race ({n_races} races): {tot_g / n_races:.1f} green-flag, "
-                  f"{tot_all / n_races:.1f} incl. lap 1, restarts and incidents", "",
-              "| Turn | Green total | Green avg/race | All avg/race |", "|---|---|---|---|"]
-    lines += [f"| T{t} | {by_turn.get(t, 0)} | {by_turn.get(t, 0) / n_races:.1f} | {n / n_races:.1f} |"
-              for t, n in sorted(by_turn_all.items(), key=lambda kv: -by_turn.get(kv[0], 0))]
+
+def build(out_dir: str = ".") -> int:
+    import glob, os
+    races = []
+    for path in sorted(glob.glob(f"{RACES_DIR}/*.json")):
+        with open(path) as f:
+            races.append(json.load(f))
+    if not races:
+        print("No race files."); return 1
+    for rc in races:
+        tag_incidents(rc["result"]["passes"])
+
+    # whole-grid summary: one row per Grand Prix
+    rows = []
+    for rc in sorted(races, key=lambda r: r["date"]):
+        cnt = {k: sum(p["cat"] == k for p in rc["result"]["passes"]) for k in ("green", "lap1", "restart", "incident")}
+        rows.append({"year": rc["year"], "date": rc["date"], "meeting": rc["meeting"],
+                     "circuit": rc["circuit"], **cnt})
+    f1 = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+          "method": "On-track passes per Grand Prix from OpenF1 lap-by-lap positions; green = racing passes "
+                    "excluding lap 1, safety-car restarts, pit stops and passes on spun/stricken cars.",
+          "races": rows}
+    with open(os.path.join(out_dir, "overtakes-f1.json"), "w") as f:
+        json.dump(f1, f, separators=(",", ":"))
+
+    # per-circuit passing-map files
+    for circuit, slug in MAP_CIRCUITS.items():
+        mine = sorted((r for r in races if r["circuit"] == circuit), key=lambda r: r["year"])
+        if not mine:
+            print(f"{circuit}: no races yet"); continue
+        latest = mine[-1]["result"]
+        out = {"circuit": circuit, "meeting": mine[-1]["meeting"],
+               "generated": f1["generated"], "method": f1["method"],
+               "lapLength": latest["lapLength"], "track": latest["track"], "corners": latest["corners"],
+               "races": {str(r["year"]): {"passes": r["result"]["passes"], "dropped": r["result"]["dropped"]}
+                         for r in mine}}
+        with open(os.path.join(out_dir, f"overtakes-{slug}.json"), "w") as f:
+            json.dump(out, f, separators=(",", ":"))
+
+    # summary for the Action log
+    by_year = {}
+    for r in rows:
+        by_year.setdefault(r["year"], []).append(r["green"])
+    lines = ["| Year | GPs | Avg green-flag passes |", "|---|---|---|"]
+    lines += [f"| {y} | {len(v)} | {sum(v) / len(v):.1f} |" for y, v in sorted(by_year.items())]
+    allg = [r["green"] for r in rows]
+    lines += ["", f"All {len(allg)} GPs: {sum(allg) / len(allg):.1f} green-flag passes per race", "",
+              "| Circuit | GPs | Avg green | Rank |", "|---|---|---|---|"]
+    per_c = {}
+    for r in rows:
+        per_c.setdefault(r["circuit"], []).append(r["green"])
+    ranked = sorted(per_c.items(), key=lambda kv: -sum(kv[1]) / len(kv[1]))
+    lines += [f"| {c}{' *' if c in MAP_CIRCUITS else ''} | {len(v)} | {sum(v) / len(v):.1f} | {i + 1} |"
+              for i, (c, v) in enumerate(ranked)]
     summary = "\n".join(lines)
     print(summary)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-            f.write("## COTA overtakes\n\n" + summary + "\n")
+            f.write("## F1 overtakes\n\n" + summary + "\n")
     return 0
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--years", nargs="+", type=int, default=[])
-    ap.add_argument("--part", help="write a single-year result here instead of combining")
-    ap.add_argument("--combine", nargs="*", help="merge these part files (none = re-merge --previous)")
-    ap.add_argument("--out", default="overtakes-cota.json")
-    ap.add_argument("--previous", help="earlier output to carry missing years over from")
-    ap.add_argument("--cache", default=".fastf1-cache")
+    ap.add_argument("--plan", action="store_true")
+    ap.add_argument("--years", nargs="+", type=int)
+    ap.add_argument("--force", action="store_true", help="re-analyse races that already have a file")
+    ap.add_argument("--race", help="JSON matrix item (from --plan) to analyse")
+    ap.add_argument("--build", action="store_true")
     args = ap.parse_args(argv)
 
-    if args.combine is not None:
-        results = {}
-        for path in args.combine:
-            with open(path) as f:
-                part = json.load(f)
-            results[int(part["year"])] = part["result"]
-        return combine(results, args.out, args.previous)
-
-    import os, fastf1
-    os.makedirs(args.cache, exist_ok=True)
-    fastf1.Cache.enable_cache(args.cache)
-    results = {}
-    for y in args.years:
-        try:
-            results[y] = analyse_year(y)
-        except Exception:
-            import traceback
-            print(f"=== {y} FAILED ===", flush=True)
-            traceback.print_exc(file=sys.stdout)
-    if args.part:
-        if len(results) != 1:
-            return 1
-        (y, r), = results.items()
-        with open(args.part, "w") as f:
-            json.dump({"year": y, "result": r}, f, separators=(",", ":"))
+    if args.plan:
+        years = args.years or list(range(FIRST_YEAR, datetime.now(timezone.utc).year + 1))
+        todo = plan(years, args.force)
+        print(json.dumps(todo, separators=(",", ":")))
         return 0
-    return combine(results, args.out, args.previous)
+    if args.race:
+        run_race(json.loads(args.race))
+        return 0
+    if args.build:
+        return build()
+    ap.print_help()
+    return 1
 
 
 if __name__ == "__main__":

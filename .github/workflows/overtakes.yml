@@ -1,15 +1,24 @@
-name: Build overtake heat map data
+name: Build overtake data
 
-# Manual only: Actions tab -> "Build overtake heat map data" -> Run workflow.
-# Writes overtakes-cota.json; does not touch index.html.
-# Each race year runs on its own runner, then a final job merges and commits.
-# 2022 comes from F1's archive via FastF1 (cached); 2023+ from OpenF1.
+# Derives on-track passes for every Grand Prix since 2023 from OpenF1 and
+# commits them for the app's passing maps and F1-average comparison.
+#  - Runs itself every Monday (picks up the weekend's race; already-analysed
+#    races are skipped, so a normal week is one race).
+#  - Manual: Actions tab -> "Build overtake data" -> Run workflow.
+# Writes overtakes/races/*.json, overtakes-<circuit>.json, overtakes-f1.json.
+# Never touches index.html.
 on:
+  schedule:
+    - cron: "40 13 * * 1"     # Monday 13:40 UTC (09:40 Detroit)
   workflow_dispatch:
     inputs:
       years:
-        description: "Race years as a JSON list"
-        default: "[2022, 2023, 2024, 2025]"
+        description: "Limit to these years, space-separated (blank = 2023 to now)"
+        default: ""
+      force:
+        description: "Re-analyse races that already have data"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -19,76 +28,88 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  year:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        year: ${{ fromJSON(inputs.years) }}
+    timeout-minutes: 10
+    outputs:
+      todo: ${{ steps.plan.outputs.todo }}
+      count: ${{ steps.plan.outputs.count }}
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - run: pip install numpy scipy
+      - name: List races still to analyse
+        id: plan
+        run: |
+          args=""
+          [ -n "${{ inputs.years }}" ] && args="--years ${{ inputs.years }}"
+          [ "${{ inputs.force }}" = "true" ] && args="$args --force"
+          todo=$(python scripts/overtakes.py --plan $args)
+          count=$(echo "$todo" | python -c "import json,sys;print(len(json.load(sys.stdin)))")
+          echo "todo=$todo"   >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Races to analyse::$count"
+          echo "$todo" | python -c "import json,sys;[print(r['year'],r['meeting']) for r in json.load(sys.stdin)]"
 
-      - name: Install FastF1
-        run: pip install "fastf1>=3.8,<4" scipy numpy
-
-      - name: Cache F1 timing data
-        uses: actions/cache@v4
+  race:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 5              # stay polite to OpenF1's free API
+      matrix:
+        item: ${{ fromJSON(needs.plan.outputs.todo) }}
+    name: ${{ matrix.item.year }} ${{ matrix.item.meeting }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
-          path: .fastf1-cache
-          key: fastf1-cota-${{ matrix.year }}
-
-      - name: Analyse ${{ matrix.year }}
+          python-version: "3.12"
+      - run: pip install numpy scipy
+      - name: Analyse
         run: |
           status=0
-          python -u scripts/overtakes.py --years ${{ matrix.year }} --part part-${{ matrix.year }}.json > raw.log 2>&1 || status=$?
-          grep -v -E " DEBUG " raw.log | tail -c 3000 > short.log || true
-          cat raw.log | grep -v " DEBUG " | tail -200
+          python -u scripts/overtakes.py --race '${{ toJSON(matrix.item) }}' > run.log 2>&1 || status=$?
+          tail -c 4000 run.log
           if [ $status -ne 0 ]; then
-            echo "::error title=${{ matrix.year }} failed::$(sed 's/%/%25/g' short.log | awk 'BEGIN{ORS="%0A"}{print}')"
+            echo "::error title=${{ matrix.item.year }} ${{ matrix.item.meeting }}::$(tail -c 1500 run.log | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"}{print}')"
           fi
           exit $status
-
       - uses: actions/upload-artifact@v4
         with:
-          name: part-${{ matrix.year }}
-          path: part-${{ matrix.year }}.json
+          name: race-${{ matrix.item.key }}
+          path: overtakes/races/*.json
 
-  combine:
-    needs: year
-    if: always()
+  build:
+    needs: [plan, race]
+    if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-
+      - run: pip install numpy scipy
       - uses: actions/download-artifact@v4
         with:
-          pattern: part-*
+          pattern: race-*
+          path: overtakes/races
           merge-multiple: true
-
-      - name: Combine years
+      - name: Merge
         run: |
-          python -c "import numpy" 2>/dev/null || pip install numpy
-          ls part-*.json 2>/dev/null || echo 'no new parts'
-          python scripts/overtakes.py --combine part-*.json --previous overtakes-cota.json --out overtakes-cota.json | tee overtakes-run.log
-          msg=$(sed 's/%/%25/g' overtakes-run.log | awk 'BEGIN{ORS="%0A"}{print}')
-          echo "::notice title=Overtake summary::$msg"
-
-      - name: Commit data and run log
+          python scripts/overtakes.py --build | tee overtakes-run.log
+          echo "::notice title=Overtake summary::$(sed 's/%/%25/g' overtakes-run.log | awk 'BEGIN{ORS="%0A"}{print}')"
+      - name: Commit
         run: |
           git config user.name  "results-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add overtakes-cota.json overtakes-run.log
+          git add overtakes/races overtakes-*.json overtakes-run.log
           if git diff --cached --quiet; then echo "No changes to commit."; exit 0; fi
-          git commit -m "Update COTA overtake data"
+          git commit -m "Update overtake data"
           git pull --rebase origin main
           git push origin HEAD:main
