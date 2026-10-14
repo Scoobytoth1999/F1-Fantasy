@@ -1,5 +1,5 @@
 """
-On-track overtakes for every Grand Prix since 2023, from OpenF1 timing data.
+On-track overtakes for every Grand Prix since 2024, from OpenF1 timing data.
 
 Counting (per race):
   * A pass is a change in the official running order between two cars from
@@ -217,11 +217,12 @@ def densify(x, y, step_m=1.0, units_per_m=10.0):
 def analyse(race: dict) -> dict:
     from scipy.spatial import cKDTree
     rx, ry, rd = race["ref_x"], race["ref_y"], race["ref_d"]
-    L = float(rd[-1])
-    tree = cKDTree(np.c_[rx, ry])
+    located = rx is not None
+    L = float(rd[-1]) if located else 1.0
+    tree = cKDTree(np.c_[rx, ry]) if located else None
 
     cor = []
-    for lab, x, y in race["corners"]:
+    for lab, x, y in (race["corners"] if located else []):
         _, i = tree.query([x, y])
         cor.append((float(rd[i]), lab, x, y))
     cor.sort()
@@ -233,7 +234,7 @@ def analyse(race: dict) -> dict:
     last_t = {drv: max((e for _, e, _, _ in lp.values() if e == e), default=t_start)
               for drv, lp in race["laps"].items()}
     P = {}
-    for drv, (pt, px, py) in race["samples"].items():
+    for drv, (pt, px, py) in (race["samples"].items() if located else []):
         m = (pt >= t_start - 5) & (pt <= t_end + 5)
         if m.sum() < 50:
             continue
@@ -287,10 +288,10 @@ def analyse(race: dict) -> dict:
     rot = math.radians(float(race["rotation"]))
     def rotxy(x, y):
         return [round(x * math.cos(rot) - y * math.sin(rot)), round(x * math.sin(rot) + y * math.cos(rot))]
-    step = max(1, len(rx) // 300)
+    step = max(1, len(rx) // 300) if located else 1
     return {
-        "lapLength": round(L),
-        "track": [rotxy(x, y) for x, y in zip(rx[::step], ry[::step])],
+        "lapLength": round(L) if located else None,
+        "track": [rotxy(x, y) for x, y in zip(rx[::step], ry[::step])] if located else [],
         "corners": [{"turn": lab, "d": round(a), "xy": rotxy(float(x), float(y))} for a, lab, x, y in cor],
         "passes": passes,
         "dropped": dropped,
@@ -460,7 +461,7 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
     starts = [w[1][0] for d in lap_win for w in [(d, lap_win[d].get(1))] if w[1]]
     if not starts:
         stamped = sum(1 for l in laps_raw if l.get("date_start"))
-        raise RuntimeError(f"lap-1 timing missing ({stamped}/{len(laps_raw)} laps have start times)")
+        raise NoRaceData(f"incomplete lap data ({len(laps_raw)} laps, {stamped} with start times, no lap-1 timing)")
     t_start = min(starts)
     winner = next(str(r["driver_number"]) for r in results if r.get("position") == 1)
     t_end = max(s1 for _, s1 in lap_win[winner].values())
@@ -482,13 +483,16 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
             xs = np.array([p[0] for p in pts], float); ys = np.array([p[1] for p in pts], float)
             break
     if xs is None:
-        raise RuntimeError("no lap with usable position data for a reference line")
-    rx, ry, rd = densify(xs, ys)
+        # No usable X/Y data: passes still count from the lap chart, just unplaced.
+        print("no usable position data - passes will be counted but not located", flush=True)
+        rx = ry = rd = None
+    else:
+        rx, ry, rd = densify(xs, ys)
 
     samples = {}
     t0 = datetime.fromtimestamp(t_start - 120, tz=timezone.utc).isoformat()
     t1 = datetime.fromtimestamp(t_end + 60, tz=timezone.utc).isoformat()
-    for drv in abbr:
+    for drv in (abbr if rx is not None else []):
         loc = get_json(f"{OPENF1}location?session_key={k}&driver_number={drv}&date>={t0}&date<={t1}")
         pts = [(iso(p["date"]), p["x"], p["y"]) for p in loc if p["x"] or p["y"]]
         if pts:
@@ -506,13 +510,14 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
 
 # --------------------------------------------------------------- orchestration
 #
-#   --plan   list finished Grands Prix (2023+) not yet analysed -> GitHub matrix JSON
+#   --plan   list finished Grands Prix (FIRST_YEAR+) not yet analysed -> GitHub matrix JSON
 #   --race   analyse one race (by OpenF1 session key) -> overtakes/races/<year>-<slug>.json
 #   --build  merge every race file -> overtakes-<slug>.json for MAP_CIRCUITS
 #            + overtakes-f1.json (per-race totals for the whole grid, for F1 averages)
 
 RACES_DIR = "overtakes/races"
-FIRST_YEAR = 2023                      # OpenF1 coverage starts here
+FIRST_YEAR = 2024   # OpenF1 starts in 2023, but its 2023 position feed is unreliable
+                    # (e.g. Monaco 56 passes vs ~5 real; Montreal 16 vs ~40), so 2024 on.
 # Circuits that get a passing map in the app (OpenF1 circuit_short_name -> file slug)
 MAP_CIRCUITS = {
     "Austin": "austin", "Mexico City": "mexico-city", "Interlagos": "interlagos",
@@ -580,7 +585,7 @@ def build(out_dir: str = ".") -> int:
     for path in sorted(glob.glob(f"{RACES_DIR}/*.json")):
         with open(path) as f:
             rc = json.load(f)
-        if rc.get("result"):
+        if rc.get("result") and int(rc["year"]) >= FIRST_YEAR:
             races.append(rc)
     if not races:
         print("No race files."); return 1
@@ -605,7 +610,7 @@ def build(out_dir: str = ".") -> int:
         mine = sorted((r for r in races if r["circuit"] == circuit), key=lambda r: r["year"])
         if not mine:
             print(f"{circuit}: no races yet"); continue
-        latest = mine[-1]["result"]
+        latest = next((r["result"] for r in reversed(mine) if r["result"]["track"]), mine[-1]["result"])
         out = {"circuit": circuit, "meeting": mine[-1]["meeting"],
                "generated": f1["generated"], "method": f1["method"],
                "lapLength": latest["lapLength"], "track": latest["track"], "corners": latest["corners"],
