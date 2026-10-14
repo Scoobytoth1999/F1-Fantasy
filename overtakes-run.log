@@ -1,0 +1,123 @@
+events      WARNING 	Correcting user input 'United States Grand Prix' to 'United States Grand Prix'
+_api        WARNING 	Driver 10: Ignoring late data for a previously processed lap.The data may contain errors (previous: 6; current 7)
+_api        WARNING 	Driver 20: Ignoring late data for a previously processed lap.The data may contain errors (previous: 31; current 32)
+_api        WARNING 	Failed to align laps for drivers: ['55']
+_api        WARNING 	Driver 241: Position data is incomplete!
+_api        WARNING 	Driver 242: Position data is incomplete!
+_api        WARNING 	Driver 243: Position data is incomplete!
+events      WARNING 	Correcting user input 'United States Grand Prix' to 'United States Grand Prix'
+logger      WARNING 	Failed to load session info data!
+core        WARNING 	Failed to load extended driver information!
+logger      WARNING 	Failed to load session status data!
+logger      WARNING 	Failed to load total lap count!
+logger      WARNING 	Failed to load track status data!
+logger      WARNING 	Failed to load timing data!
+core        WARNING 	Failed to add first lap time from Ergast for drivers: ['4', '16', '55', '44', '1', '81', '31', '63', '11', '10', '24', '22', '3', '23', '77', '20', '2', '14', '27', '18']
+core        WARNING 	Car telemetry data is unavailable!
+core        WARNING 	Car position data is unavailable!
+core        WARNING 	Failed to determine `Session.t0_date`!
+logger      WARNING 	Failed to load race control messages!
+=== 2023 FAILED ===
+Traceback (most recent call last):
+  File "/home/runner/work/F1-Fantasy/F1-Fantasy/scripts/overtakes.py", line 273, in main
+    r = analyse_year(y)
+        ^^^^^^^^^^^^^^^
+  File "/home/runner/work/F1-Fantasy/F1-Fantasy/scripts/overtakes.py", line 155, in analyse_year
+    ci = s.get_circuit_info()
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 2728, in get_circuit_info
+    circuit_key = self.session_info['Meeting']['Circuit']['Key']
+                  ^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 1247, in session_info
+    return self._get_property_warn_not_loaded('_session_info')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 1231, in _get_property_warn_not_loaded
+    raise exceptions.DataNotLoadedError(
+fastf1.exceptions.DataNotLoadedError: The data you are trying to access has not been loaded yet. See `Session.load`
+events      WARNING 	Correcting user input 'United States Grand Prix' to 'United States Grand Prix'
+logger      WARNING 	Failed to load session info data!
+core        WARNING 	Failed to load extended driver information!
+logger      WARNING 	Failed to load session status data!
+logger      WARNING 	Failed to load total lap count!
+logger      WARNING 	Failed to load track status data!
+logger      WARNING 	Failed to load timing data!
+core        WARNING 	Failed to add first lap time from Ergast for drivers: ['16', '1', '55', '4', '81', '10', '20', '22', '11', '14', '27', '44', '18', '30', '24', '43', '77', '23', '63', '31']
+core        WARNING 	Car telemetry data is unavailable!
+core        WARNING 	Car position data is unavailable!
+core        WARNING 	Failed to determine `Session.t0_date`!
+logger      WARNING 	Failed to load race control messages!
+=== 2024 FAILED ===
+Traceback (most recent call last):
+  File "/home/runner/work/F1-Fantasy/F1-Fantasy/scripts/overtakes.py", line 273, in main
+    r = analyse_year(y)
+        ^^^^^^^^^^^^^^^
+  File "/home/runner/work/F1-Fantasy/F1-Fantasy/scripts/overtakes.py", line 155, in analyse_year
+    ci = s.get_circuit_info()
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 2728, in get_circuit_info
+    circuit_key = self.session_info['Meeting']['Circuit']['Key']
+                  ^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 1247, in session_info
+    return self._get_property_warn_not_loaded('_session_info')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 1231, in _get_property_warn_not_loaded
+    raise exceptions.DataNotLoadedError(
+fastf1.exceptions.DataNotLoadedError: The data you are trying to access has not been loaded yet. See `Session.load`
+events      WARNING 	Correcting user input 'United States Grand Prix' to 'United States Grand Prix'
+logger      WARNING 	Failed to load session info data!
+core        WARNING 	Failed to load extended driver information!
+logger      WARNING 	Failed to load session status data!
+logger      WARNING 	Failed to load total lap count!
+logger      WARNING 	Failed to load track status data!
+logger      WARNING 	Failed to load timing data!
+core        WARNING 	Failed to add first lap time from Ergast for drivers: ['1', '16', '4', '44', '81', '63', '12', '87', '55', '22', '27', '14', '30', '10', '31', '5', '43', '18', '6', '23']
+core        WARNING 	Car telemetry data is unavailable!
+core        WARNING 	Car position data is unavailable!
+core        WARNING 	Failed to determine `Session.t0_date`!
+logger      WARNING 	Failed to load race control messages!
+=== 2025 FAILED ===
+Traceback (most recent call last):
+  File "/home/runner/work/F1-Fantasy/F1-Fantasy/scripts/overtakes.py", line 273, in main
+    r = analyse_year(y)
+        ^^^^^^^^^^^^^^^
+  File "/home/runner/work/F1-Fantasy/F1-Fantasy/scripts/overtakes.py", line 155, in analyse_year
+    ci = s.get_circuit_info()
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 2728, in get_circuit_info
+    circuit_key = self.session_info['Meeting']['Circuit']['Key']
+                  ^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 1247, in session_info
+    return self._get_property_warn_not_loaded('_session_info')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/fastf1/core.py", line 1231, in _get_property_warn_not_loaded
+    raise exceptions.DataNotLoadedError(
+fastf1.exceptions.DataNotLoadedError: The data you are trying to access has not been loaded yet. See `Session.load`
+| Year | Green | Lap 1 | Restart | Dropped (pit/SC/retire) |
+|---|---|---|---|---|
+| 2022 | 505 | 96 | 46 | 185/48/16 |
+
+Avg per race (1 races): 505.0 green-flag, 647.0 incl. lap 1 and restarts
+
+| Turn | Green total | Green avg/race | All avg/race |
+|---|---|---|---|
+| T12 | 117 | 117.0 | 137.0 |
+| T1 | 88 | 88.0 | 156.0 |
+| T11 | 83 | 83.0 | 106.0 |
+| T20 | 47 | 47.0 | 52.0 |
+| T15 | 37 | 37.0 | 42.0 |
+| T2 | 30 | 30.0 | 39.0 |
+| T16 | 20 | 20.0 | 20.0 |
+| T13 | 15 | 15.0 | 19.0 |
+| T9 | 12 | 12.0 | 13.0 |
+| T6 | 10 | 10.0 | 11.0 |
+| T7 | 10 | 10.0 | 12.0 |
+| T10 | 9 | 9.0 | 10.0 |
+| T14 | 7 | 7.0 | 8.0 |
+| T19 | 6 | 6.0 | 6.0 |
+| T8 | 4 | 4.0 | 5.0 |
+| T5 | 3 | 3.0 | 3.0 |
+| T17 | 2 | 2.0 | 2.0 |
+| T4 | 2 | 2.0 | 3.0 |
+| T18 | 2 | 2.0 | 2.0 |
+| T3 | 1 | 1.0 | 1.0 |
+exit status: 0
