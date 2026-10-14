@@ -269,7 +269,13 @@ def main(argv=None):
                      "pit, SC/VSC/red and retirements excluded; lap 1 and restart laps tagged.",
            "races": {}}
     for y in args.years:
-        r = analyse_year(y)
+        try:
+            r = analyse_year(y)
+        except Exception:
+            import traceback
+            print(f"=== {y} FAILED ===", flush=True)
+            traceback.print_exc(file=sys.stdout)
+            continue
         if "track" not in out:
             out["track"], out["corners"], out["lapLength"] = r.pop("track"), r.pop("corners"), r.pop("lapLength")
         else:
@@ -294,6 +300,8 @@ def main(argv=None):
     lines += [f"| T{t} | {n} |" for t, n in sorted(by_turn.items(), key=lambda kv: -kv[1])]
     summary = "\n".join(lines)
     print(summary)
+    if not out["races"]:
+        return 1
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("## COTA overtakes\n\n" + summary + "\n")

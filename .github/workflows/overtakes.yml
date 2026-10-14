@@ -37,16 +37,24 @@ jobs:
           key: fastf1-cota-${{ inputs.years }}
 
       - name: Derive overtakes per corner
-        run: python scripts/overtakes.py --years ${{ inputs.years }} --out overtakes-cota.json
-
-      - name: Commit if changed
         run: |
-          if [ -z "$(git status --porcelain -- overtakes-cota.json)" ]; then
+          status=0
+          python -u scripts/overtakes.py --years ${{ inputs.years }} --out overtakes-cota.json > raw.log 2>&1 || status=$?
+          { grep -v -E " INFO | DEBUG " raw.log || true; } | tail -c 60000 > overtakes-run.log
+          echo "exit status: $status" >> overtakes-run.log
+          cat overtakes-run.log
+          exit $status
+
+      - name: Commit data and run log
+        if: always()
+        run: |
+          git add overtakes-run.log 2>/dev/null || true
+          [ -f overtakes-cota.json ] && git add overtakes-cota.json
+          if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
           git config user.name  "results-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add overtakes-cota.json
           git commit -m "Update COTA overtake data"
           git push
