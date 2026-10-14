@@ -44,7 +44,7 @@ jobs:
 
       - name: Probe F1 timing archive
         run: |
-          for u in "https://livetiming.formula1.com/static/${{ matrix.year }}/Index.json" "https://livetiming.formula1.com/static/2022/Index.json"; do
+          for u in "https://livetiming.formula1.com/static/${{ matrix.year }}/Index.json" "https://api.openf1.org/v1/sessions?year=${{ matrix.year }}&session_name=Race&location=Austin"; do
             code=$(curl -s -o probe.txt -w "%{http_code}" -A "Mozilla/5.0" "$u"); echo "$u -> $code $(head -c 200 probe.txt)"
             echo "::notice title=probe ${{ matrix.year }}::$u -> $code $(head -c 300 probe.txt | tr -d '\n%')"
           done
