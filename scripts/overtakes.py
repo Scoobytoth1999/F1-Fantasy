@@ -165,6 +165,23 @@ def lap_chart_swaps(pos: dict, grid_pos: dict, skip: dict, retired_from: dict):
     return out
 
 
+INCIDENT_MIN = 4   # a car losing this many places in one lap had a spin/off/problem
+
+
+def tag_incidents(passes: list[dict]) -> list[dict]:
+    """Re-tag passes on a car that lost INCIDENT_MIN+ places in one lap as 'incident'.
+
+    A spun or stricken car being driven past by half the field is a position
+    change, not racing; lap-1 passes keep their own tag.
+    """
+    from collections import Counter
+    n = Counter((p["lap"], p["on"]) for p in passes if p["cat"] != "lap1")
+    for p in passes:
+        if p["cat"] != "lap1" and n[(p["lap"], p["on"])] >= INCIDENT_MIN:
+            p["cat"] = "incident"
+    return passes
+
+
 def in_intervals(x: float, iv: list[tuple[float, float]]) -> bool:
     return any(a <= x <= b for a, b in iv)
 
@@ -514,6 +531,8 @@ def combine(results: dict, out_path: str, previous: str | None = None) -> int:
             if "track" not in out and "track" in prev:
                 out["track"], out["corners"], out["lapLength"] = prev["track"], prev["corners"], prev["lapLength"]
     out["races"] = dict(sorted(out["races"].items()))
+    for r in out["races"].values():
+        tag_incidents(r["passes"])
 
     n_races = len(out["races"])
     if not n_races:
@@ -522,19 +541,21 @@ def combine(results: dict, out_path: str, previous: str | None = None) -> int:
     with open(out_path, "w") as f:
         json.dump(out, f, separators=(",", ":"))
 
-    lines = ["| Year | Green | Lap 1 | Restart | Under SC (dropped) / no location |", "|---|---|---|---|---|"]
+    lines = ["| Year | Green | Lap 1 | Restart | Incident | Under SC (dropped) / no location |",
+             "|---|---|---|---|---|---|"]
     by_turn, by_turn_all, tot_g, tot_all = {}, {}, 0, 0
     for y, r in out["races"].items():
-        c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart")}
+        c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart", "incident")}
         dr = r["dropped"]
-        lines.append(f"| {y} | {c['green']} | {c['lap1']} | {c['restart']} | {dr['neutral']} / {dr['unlocated']} |")
+        lines.append(f"| {y} | {c['green']} | {c['lap1']} | {c['restart']} | {c['incident']} "
+                     f"| {dr['neutral']} / {dr['unlocated']} |")
         tot_g += c["green"]; tot_all += sum(c.values())
         for p in r["passes"]:
             by_turn_all[p["turn"]] = by_turn_all.get(p["turn"], 0) + 1
             if p["cat"] == "green":
                 by_turn[p["turn"]] = by_turn.get(p["turn"], 0) + 1
     lines += ["", f"Avg per race ({n_races} races): {tot_g / n_races:.1f} green-flag, "
-                  f"{tot_all / n_races:.1f} incl. lap 1 and restarts", "",
+                  f"{tot_all / n_races:.1f} incl. lap 1, restarts and incidents", "",
               "| Turn | Green total | Green avg/race | All avg/race |", "|---|---|---|---|"]
     lines += [f"| T{t} | {by_turn.get(t, 0)} | {by_turn.get(t, 0) / n_races:.1f} | {n / n_races:.1f} |"
               for t, n in sorted(by_turn_all.items(), key=lambda kv: -by_turn.get(kv[0], 0))]
@@ -550,13 +571,13 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", nargs="+", type=int, default=[])
     ap.add_argument("--part", help="write a single-year result here instead of combining")
-    ap.add_argument("--combine", nargs="+", help="merge these part files")
+    ap.add_argument("--combine", nargs="*", help="merge these part files (none = re-merge --previous)")
     ap.add_argument("--out", default="overtakes-cota.json")
     ap.add_argument("--previous", help="earlier output to carry missing years over from")
     ap.add_argument("--cache", default=".fastf1-cache")
     args = ap.parse_args(argv)
 
-    if args.combine:
+    if args.combine is not None:
         results = {}
         for path in args.combine:
             with open(path) as f:
