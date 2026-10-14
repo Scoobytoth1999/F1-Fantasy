@@ -42,6 +42,13 @@ jobs:
           path: .fastf1-cache
           key: fastf1-cota-${{ matrix.year }}
 
+      - name: Probe F1 timing archive
+        run: |
+          for u in "https://livetiming.formula1.com/static/${{ matrix.year }}/Index.json" "https://livetiming.formula1.com/static/2022/Index.json"; do
+            code=$(curl -s -o probe.txt -w "%{http_code}" -A "Mozilla/5.0" "$u"); echo "$u -> $code $(head -c 200 probe.txt)"
+            echo "::notice title=probe ${{ matrix.year }}::$u -> $code $(head -c 300 probe.txt | tr -d '\n%')"
+          done
+
       - name: Analyse ${{ matrix.year }}
         run: |
           status=0
