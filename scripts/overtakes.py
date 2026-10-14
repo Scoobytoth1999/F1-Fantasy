@@ -171,15 +171,18 @@ INCIDENT_MIN = 4   # a car losing this many places in one lap had a spin/off/pro
 
 
 def tag_incidents(passes: list[dict]) -> list[dict]:
-    """Re-tag passes on a car that lost INCIDENT_MIN+ places in one lap as 'incident'.
+    """Re-tag mass position swings in a single lap as 'incident'.
 
-    A spun or stricken car being driven past by half the field is a position
-    change, not racing; lap-1 passes keep their own tag.
+    A car LOSING INCIDENT_MIN+ places in one lap spun, stopped or pitted
+    unrecorded; a car GAINING that many in one lap is a timing-data glitch or
+    an unrecorded pit cycle. Neither is racing. Lap-1 passes keep their tag.
     """
     from collections import Counter
-    n = Counter((p["lap"], p["on"]) for p in passes if p["cat"] != "lap1")
+    lost = Counter((p["lap"], p["on"]) for p in passes if p["cat"] != "lap1")
+    gained = Counter((p["lap"], p["by"]) for p in passes if p["cat"] != "lap1")
     for p in passes:
-        if p["cat"] != "lap1" and n[(p["lap"], p["on"])] >= INCIDENT_MIN:
+        if p["cat"] != "lap1" and (lost[(p["lap"], p["on"])] >= INCIDENT_MIN
+                                   or gained[(p["lap"], p["by"])] >= INCIDENT_MIN):
             p["cat"] = "incident"
     return passes
 
@@ -359,6 +362,37 @@ def iso(s: str) -> float:
     return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
 
 
+SLOW_LAP = 1.20   # a lap this much slower than the field's median for that lap = pit/problem
+
+
+def slow_laps(laps_raw: list[dict], pits: list[dict]) -> dict[str, set]:
+    """Laps on which a car's position change isn't a racing pass.
+
+    Combines OpenF1's pit records (often incomplete, especially in 2023) with
+    what the lap times show: the lap before a pit-out lap is the in-lap, and
+    any lap far slower than the rest of the field's same lap is a pit stop,
+    drive-through or problem. Flagged laps are skipped for that car along
+    with the following lap (see analyse()).
+    """
+    out: dict[str, set] = {}
+    for p in pits:
+        if p.get("lap_number"):
+            out.setdefault(str(p["driver_number"]), set()).add(int(p["lap_number"]))
+    by_lap: dict[int, list[float]] = {}
+    for l in laps_raw:
+        if l.get("lap_duration"):
+            by_lap.setdefault(int(l["lap_number"]), []).append(float(l["lap_duration"]))
+    med = {n: float(np.median(v)) for n, v in by_lap.items() if len(v) >= 5}
+    for l in laps_raw:
+        drv, n = str(l["driver_number"]), int(l["lap_number"])
+        if l.get("is_pit_out_lap") and n > 1:
+            out.setdefault(drv, set()).add(n - 1)          # in-lap
+        dur = l.get("lap_duration")
+        if dur and n in med and n > 1 and float(dur) > SLOW_LAP * med[n]:
+            out.setdefault(drv, set()).add(n)
+    return out
+
+
 class NoRaceData(Exception):
     pass
 
@@ -411,10 +445,7 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
         i = int(np.searchsorted([x[0] for x in tl], t + 1.0, side="right")) - 1
         return float(tl[i][1]) if i >= 0 else None
 
-    pit_laps = {}
-    for p in pits:
-        if p.get("lap_number"):
-            pit_laps.setdefault(str(p["driver_number"]), set()).add(int(p["lap_number"]))
+    pit_laps = slow_laps(laps_raw, pits)
 
     lp = {}
     for drv, wins in lap_win.items():
