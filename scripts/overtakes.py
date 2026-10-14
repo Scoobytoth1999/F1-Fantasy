@@ -135,6 +135,36 @@ def resample(grid: np.ndarray, t: np.ndarray, v: np.ndarray, max_gap=5.0) -> np.
     return g
 
 
+def lap_chart_swaps(pos: dict, grid_pos: dict, skip: dict, retired_from: dict):
+    """Passes from the official lap chart.
+
+    pos[drv][lap] = official position at the end of that lap.
+    grid_pos[drv] = starting position (order before lap 1).
+    skip[drv] = laps where that car's position change is pit-induced (in/out laps).
+    retired_from[drv] = first lap on which a non-finisher was slowing to retire.
+    Returns [(lap, winner, loser)] for every pair whose relative order flipped
+    between consecutive laps. Lapping a backmarker never flips position order,
+    so it is never counted.
+    """
+    out = []
+    laps = sorted({n for d in pos.values() for n in d})
+    for n in laps:
+        prev = grid_pos if n == 1 else {d: p[n - 1] for d, p in pos.items() if n - 1 in p}
+        cur = {d: p[n] for d, p in pos.items() if n in p}
+        live = sorted(d for d in cur if d in prev)
+        for i, a in enumerate(live):
+            for b in live[i + 1:]:
+                if (prev[a] < prev[b]) == (cur[a] < cur[b]):
+                    continue
+                win, lose = (a, b) if cur[a] < cur[b] else (b, a)
+                if n in skip.get(a, ()) or n in skip.get(b, ()):
+                    continue
+                if n >= retired_from.get(lose, 10 ** 9):
+                    continue
+                out.append((n, win, lose))
+    return out
+
+
 def in_intervals(x: float, iv: list[tuple[float, float]]) -> bool:
     return any(a <= x <= b for a, b in iv)
 
@@ -150,8 +180,19 @@ def analyse_year(year: int) -> dict:
     import fastf1
     from scipy.spatial import cKDTree
 
-    s = fastf1.get_session(year, EVENT, "R")
-    s.load(laps=True, telemetry=True, weather=False, messages=True)
+    import time
+    for attempt in range(4):
+        s = fastf1.get_session(year, EVENT, "R")
+        s.load(laps=True, telemetry=True, weather=False, messages=True)
+        try:
+            if len(s.laps) and s.pos_data:
+                break
+        except Exception:
+            pass
+        print(f"{year}: data incomplete, retry {attempt + 1} in {90 * (attempt + 1)}s", flush=True)
+        time.sleep(90 * (attempt + 1))
+    else:
+        raise RuntimeError(f"{year}: timing data unavailable after retries")
     ci = s.get_circuit_info()
 
     ref = s.laps.pick_fastest().get_telemetry()
@@ -214,30 +255,55 @@ def analyse_year(year: int) -> dict:
         g[grid > last_t[drv] + 5] = np.nan
         P[drv] = g
 
-    drivers = sorted(P)
-    passes, dropped = [], {"pit": 0, "neutral": 0, "retire": 0}
-    for i, a in enumerate(drivers):
-        for b in drivers[i + 1:]:
-            for tc, who in find_swaps(grid, P[a], P[b]):
-                win, lose = (a, b) if who == "a" else (b, a)
-                if in_intervals(tc, pit[a]) or in_intervals(tc, pit[b]):
-                    dropped["pit"] += 1; continue
-                if in_intervals(tc, neutral):
-                    dropped["neutral"] += 1; continue
-                st = status.get(lose, "")
-                finished = st == "Finished" or "Lap" in st   # "+1 Lap", "Lapped"
-                if not finished and tc > last_t[lose] - RETIRE_WINDOW:
-                    dropped["retire"] += 1; continue
-                pw = float(np.interp(tc, grid, P[win]))
-                lap = int(pw // L) + 1
-                d = pw % L
-                cat = "lap1" if tc <= lap1_end.get(win, 0) else \
-                      "restart" if in_intervals(tc, restart) else "green"
-                passes.append({"lap": max(lap, 1), "turn": assign_corner(d, apex, labels, L),
-                               "cat": cat, "by": abbr.get(win, win), "on": abbr.get(lose, lose),
-                               "d": round(d)})
+    # ---- count passes from the official lap chart
+    pos, skip, retired_from, lap_t = {}, {}, {}, {}
+    for drv in status:
+        dl = laps.pick_drivers(drv)
+        pos[drv], skip[drv], lap_t[drv] = {}, set(), {}
+        for r in dl.itertuples():
+            n = int(r.LapNumber)
+            if not (isinstance(r.Position, float) and math.isnan(r.Position)):
+                pos[drv][n] = float(r.Position)
+            if not math.isnan(td(r.PitInTime)):
+                skip[drv].add(n)
+            if not math.isnan(td(r.PitOutTime)) and n > 1:
+                skip[drv].add(n)
+            lap_t[drv][n] = (td(r.LapStartTime), td(r.Time))
+        st = status[drv]
+        if not (st == "Finished" or "Lap" in st) and pos[drv]:
+            retired_from[drv] = max(pos[drv])          # its final, slowing lap
+    grid_pos = {}
+    for r in res.itertuples():
+        g = float(r.GridPosition) if not math.isnan(float(r.GridPosition)) else 0.0
+        grid_pos[str(r.DriverNumber)] = g if g > 0 else 99.0   # pit-lane starters at the back
 
-    passes.sort(key=lambda p: (p["lap"], p["d"]))
+    passes, dropped, unlocated = [], {"neutral": 0}, 0
+    for n, win, lose in lap_chart_swaps(pos, grid_pos, skip, retired_from):
+        # ---- locate it on track with position data
+        spans = [lap_t[d].get(n, (np.nan, np.nan)) for d in (win, lose)]
+        lo = np.nanmin([s0 for s0, _ in spans] + [np.inf]) - 5
+        hi = np.nanmax([s1 for _, s1 in spans] + [-np.inf]) + 5
+        tc, d = None, None
+        if win in P and lose in P and np.isfinite(lo) and np.isfinite(hi):
+            m = (grid >= lo) & (grid <= hi)
+            ev = [e for e in find_swaps(grid[m], P[win][m], P[lose][m], flicker=0.0) if e[1] == "a"]
+            if ev:
+                tc = ev[-1][0]
+                d = float(np.interp(tc, grid, P[win])) % L
+        t_ref = tc if tc is not None else spans[0][0]
+        if t_ref is not None and not math.isnan(t_ref) and in_intervals(t_ref, neutral):
+            dropped["neutral"] += 1
+            continue
+        if d is None:
+            unlocated += 1
+        cat = "lap1" if n == 1 else \
+              "restart" if (t_ref is not None and in_intervals(t_ref, restart)) else "green"
+        passes.append({"lap": n, "turn": assign_corner(d, apex, labels, L) if d is not None else "?",
+                       "cat": cat, "by": abbr.get(win, win), "on": abbr.get(lose, lose),
+                       "d": round(d) if d is not None else None})
+    dropped["unlocated"] = unlocated
+
+    passes.sort(key=lambda p: (p["lap"], p["d"] if p["d"] is not None else -1))
     rot = math.radians(float(ci.rotation))
     def rotxy(x, y):
         return [round(x * math.cos(rot) - y * math.sin(rot)), round(x * math.sin(rot) + y * math.cos(rot))]
@@ -265,8 +331,9 @@ def main(argv=None):
 
     out = {"circuit": "Circuit of the Americas", "event": EVENT,
            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "method": "FastF1 position data; pass = same-lap order swap held >3s; "
-                     "pit, SC/VSC/red and retirements excluded; lap 1 and restart laps tagged.",
+           "method": "Passes counted from the official lap chart (relative order flips between "
+                     "laps); located on track with FastF1 position data. Pit in/out laps, "
+                     "SC/VSC/red and retiring cars excluded; lap 1 and restart laps tagged.",
            "races": {}}
     for y in args.years:
         try:
@@ -276,6 +343,9 @@ def main(argv=None):
             print(f"=== {y} FAILED ===", flush=True)
             traceback.print_exc(file=sys.stdout)
             continue
+        finally:
+            import time
+            time.sleep(30)   # be gentle with F1's timing server between races
         if "track" not in out:
             out["track"], out["corners"], out["lapLength"] = r.pop("track"), r.pop("corners"), r.pop("lapLength")
         else:
@@ -288,12 +358,12 @@ def main(argv=None):
 
     # summary for the Action log
     n_races = len(out["races"])
-    lines = ["| Year | Green | Lap 1 | Restart | Dropped (pit/SC/retire) |", "|---|---|---|---|---|"]
+    lines = ["| Year | Green | Lap 1 | Restart | Under SC (dropped) / no location |", "|---|---|---|---|---|"]
     by_turn, by_turn_all, tot_g, tot_all = {}, {}, 0, 0
     for y, r in out["races"].items():
         c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart")}
         dr = r["dropped"]
-        lines.append(f"| {y} | {c['green']} | {c['lap1']} | {c['restart']} | {dr['pit']}/{dr['neutral']}/{dr['retire']} |")
+        lines.append(f"| {y} | {c['green']} | {c['lap1']} | {c['restart']} | {dr['neutral']} / {dr['unlocated']} |")
         tot_g += c["green"]; tot_all += sum(c.values())
         for p in r["passes"]:
             by_turn_all[p["turn"]] = by_turn_all.get(p["turn"], 0) + 1
