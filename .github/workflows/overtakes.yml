@@ -1,0 +1,52 @@
+name: Build overtake heat map data
+
+# Manual only: Actions tab -> "Build overtake heat map data" -> Run workflow.
+# Writes overtakes-cota.json; does not touch index.html.
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Race years (space-separated)"
+        default: "2022 2023 2024 2025"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: overtakes
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install FastF1
+        run: pip install "fastf1>=3.8,<4" scipy
+
+      - name: Cache F1 timing data
+        uses: actions/cache@v4
+        with:
+          path: .fastf1-cache
+          key: fastf1-cota-${{ inputs.years }}
+
+      - name: Derive overtakes per corner
+        run: python scripts/overtakes.py --years ${{ inputs.years }} --out overtakes-cota.json
+
+      - name: Commit if changed
+        run: |
+          if [ -z "$(git status --porcelain -- overtakes-cota.json)" ]; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name  "results-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add overtakes-cota.json
+          git commit -m "Update COTA overtake data"
+          git push
