@@ -181,7 +181,7 @@ def analyse_year(year: int) -> dict:
     from scipy.spatial import cKDTree
 
     import time
-    for attempt in range(4):
+    for attempt in range(2):
         s = fastf1.get_session(year, EVENT, "R")
         s.load(laps=True, telemetry=True, weather=False, messages=True)
         try:
@@ -189,8 +189,8 @@ def analyse_year(year: int) -> dict:
                 break
         except Exception:
             pass
-        print(f"{year}: data incomplete, retry {attempt + 1} in {90 * (attempt + 1)}s", flush=True)
-        time.sleep(90 * (attempt + 1))
+        print(f"{year}: data incomplete, retry {attempt + 1} in 60s", flush=True)
+        time.sleep(60)
     else:
         raise RuntimeError(f"{year}: timing data unavailable after retries")
     ci = s.get_circuit_info()
@@ -318,46 +318,30 @@ def analyse_year(year: int) -> dict:
     }
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--years", nargs="+", type=int, default=[2022, 2023, 2024, 2025])
-    ap.add_argument("--out", default="overtakes-cota.json")
-    ap.add_argument("--cache", default=".fastf1-cache")
-    args = ap.parse_args(argv)
-
-    import os, fastf1
-    os.makedirs(args.cache, exist_ok=True)
-    fastf1.Cache.enable_cache(args.cache)
-
+def combine(results: dict, out_path: str) -> int:
+    """Merge per-year results into one file and print the summary tables."""
+    import os
     out = {"circuit": "Circuit of the Americas", "event": EVENT,
            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "method": "Passes counted from the official lap chart (relative order flips between "
                      "laps); located on track with FastF1 position data. Pit in/out laps, "
                      "SC/VSC/red and retiring cars excluded; lap 1 and restart laps tagged.",
            "races": {}}
-    for y in args.years:
-        try:
-            r = analyse_year(y)
-        except Exception:
-            import traceback
-            print(f"=== {y} FAILED ===", flush=True)
-            traceback.print_exc(file=sys.stdout)
-            continue
-        finally:
-            import time
-            time.sleep(30)   # be gentle with F1's timing server between races
+    for y in sorted(results):
+        r = dict(results[y])
         if "track" not in out:
-            out["track"], out["corners"], out["lapLength"] = r.pop("track"), r.pop("corners"), r.pop("lapLength")
-        else:
-            for k in ("track", "corners", "lapLength"):
-                r.pop(k)
+            out["track"], out["corners"], out["lapLength"] = r["track"], r["corners"], r["lapLength"]
+        for k in ("track", "corners", "lapLength"):
+            r.pop(k, None)
         out["races"][str(y)] = r
 
-    with open(args.out, "w") as f:
+    n_races = len(out["races"])
+    if not n_races:
+        print("No races analysed.")
+        return 1
+    with open(out_path, "w") as f:
         json.dump(out, f, separators=(",", ":"))
 
-    # summary for the Action log
-    n_races = len(out["races"])
     lines = ["| Year | Green | Lap 1 | Restart | Under SC (dropped) / no location |", "|---|---|---|---|---|"]
     by_turn, by_turn_all, tot_g, tot_all = {}, {}, 0, 0
     for y, r in out["races"].items():
@@ -376,11 +360,48 @@ def main(argv=None):
               for t, n in sorted(by_turn_all.items(), key=lambda kv: -by_turn.get(kv[0], 0))]
     summary = "\n".join(lines)
     print(summary)
-    if not out["races"]:
-        return 1
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("## COTA overtakes\n\n" + summary + "\n")
+    return 0
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--years", nargs="+", type=int, default=[])
+    ap.add_argument("--part", help="write a single-year result here instead of combining")
+    ap.add_argument("--combine", nargs="+", help="merge these part files")
+    ap.add_argument("--out", default="overtakes-cota.json")
+    ap.add_argument("--cache", default=".fastf1-cache")
+    args = ap.parse_args(argv)
+
+    if args.combine:
+        results = {}
+        for path in args.combine:
+            with open(path) as f:
+                part = json.load(f)
+            results[int(part["year"])] = part["result"]
+        return combine(results, args.out)
+
+    import os, fastf1
+    os.makedirs(args.cache, exist_ok=True)
+    fastf1.Cache.enable_cache(args.cache)
+    results = {}
+    for y in args.years:
+        try:
+            results[y] = analyse_year(y)
+        except Exception:
+            import traceback
+            print(f"=== {y} FAILED ===", flush=True)
+            traceback.print_exc(file=sys.stdout)
+    if args.part:
+        if len(results) != 1:
+            return 1
+        (y, r), = results.items()
+        with open(args.part, "w") as f:
+            json.dump({"year": y, "result": r}, f, separators=(",", ":"))
+        return 0
+    return combine(results, args.out)
 
 
 if __name__ == "__main__":
