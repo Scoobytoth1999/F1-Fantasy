@@ -278,7 +278,7 @@ def analyse(race: dict) -> dict:
         if d is None:
             unlocated += 1
         cat = "lap1" if n == 1 else "restart" if has_t and in_intervals(t_ref, race["restart"]) else "green"
-        passes.append({"lap": n, "turn": assign_corner(d, apex, labels, L) if d is not None else "?",
+        passes.append({"lap": n, "turn": assign_corner(d, apex, labels, L) if (d is not None and apex) else "?",
                        "cat": cat, "by": abbr.get(win, win), "on": abbr.get(lose, lose),
                        "d": round(d) if d is not None else None})
     dropped["unlocated"] = unlocated
@@ -398,7 +398,13 @@ class NoRaceData(Exception):
 
 
 def load_openf1(k: int, circuit_key: int, year: int) -> dict:
-    circ = get_json(MULTIVIEWER.format(key=circuit_key, year=year))
+    # Corner positions: this year's layout, else the most recent earlier one.
+    # Brand-new circuits may have none yet - passes still count, unplaced.
+    circ = {}
+    for y in range(year, year - 4, -1):
+        c = get_json(MULTIVIEWER.format(key=circuit_key, year=y))
+        if isinstance(c, dict) and c.get("corners"):
+            circ = c; break
 
     drivers = get_json(f"{OPENF1}drivers?session_key={k}")
     abbr = {str(d["driver_number"]): d["name_acronym"] for d in drivers}
@@ -451,21 +457,32 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
     for drv, wins in lap_win.items():
         lp[drv] = {n: (s0, s1, pos_at(drv, s1), n in pit_laps.get(drv, ())) for n, (s0, s1) in wins.items()}
 
-    t_start = min(w[1][0] for w in ((d, lap_win[d].get(1)) for d in lap_win) if w[1])
+    starts = [w[1][0] for d in lap_win for w in [(d, lap_win[d].get(1))] if w[1]]
+    if not starts:
+        stamped = sum(1 for l in laps_raw if l.get("date_start"))
+        raise RuntimeError(f"lap-1 timing missing ({stamped}/{len(laps_raw)} laps have start times)")
+    t_start = min(starts)
     winner = next(str(r["driver_number"]) for r in results if r.get("position") == 1)
     t_end = max(s1 for _, s1 in lap_win[winner].values())
 
     ev = neutral_events(rc, med_lap)
     neutral, restart = neutral_windows(ev, t_end, med_lap)
 
-    # reference line: fastest clean lap's location samples
-    fl = min((l for l in laps_raw if l.get("lap_duration") and l.get("date_start") and not l.get("is_pit_out_lap")),
-             key=lambda l: l["lap_duration"])
-    a = fl["date_start"]
-    b = datetime.fromtimestamp(iso(a) + fl["lap_duration"], tz=timezone.utc).isoformat()
-    loc = get_json(f"{OPENF1}location?session_key={k}&driver_number={fl['driver_number']}"
-                   f"&date>={a}&date<={b}")
-    xs = np.array([p["x"] for p in loc], float); ys = np.array([p["y"] for p in loc], float)
+    # reference line: fastest clean lap with usable position data
+    clean = sorted((l for l in laps_raw if l.get("lap_duration") and l.get("date_start") and not l.get("is_pit_out_lap")),
+                   key=lambda l: l["lap_duration"])
+    xs = ys = None
+    for fl in clean[:8]:
+        a = fl["date_start"]
+        b = datetime.fromtimestamp(iso(a) + fl["lap_duration"], tz=timezone.utc).isoformat()
+        loc = get_json(f"{OPENF1}location?session_key={k}&driver_number={fl['driver_number']}"
+                       f"&date>={a}&date<={b}")
+        pts = [(p["x"], p["y"]) for p in loc if p.get("x") or p.get("y")]
+        if len(pts) >= 150:
+            xs = np.array([p[0] for p in pts], float); ys = np.array([p[1] for p in pts], float)
+            break
+    if xs is None:
+        raise RuntimeError("no lap with usable position data for a reference line")
     rx, ry, rd = densify(xs, ys)
 
     samples = {}
@@ -479,7 +496,7 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
             samples[drv] = (arr[:, 0], arr[:, 1], arr[:, 2])
 
     corners = [(f"{c['number']}{c.get('letter') or ''}", float(c["trackPosition"]["x"]), float(c["trackPosition"]["y"]))
-               for c in circ["corners"]]
+               for c in circ.get("corners", [])]
     return dict(ref_x=rx, ref_y=ry, ref_d=rd, corners=corners, rotation=float(circ.get("rotation", 0)),
                 abbr=abbr, finished=finished, samples=samples, laps=lp, grid_pos=grid_pos,
                 neutral=neutral, restart=restart, t_start=t_start, t_end=t_end, source="OpenF1",
