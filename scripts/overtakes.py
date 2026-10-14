@@ -287,17 +287,23 @@ def main(argv=None):
         json.dump(out, f, separators=(",", ":"))
 
     # summary for the Action log
+    n_races = len(out["races"])
     lines = ["| Year | Green | Lap 1 | Restart | Dropped (pit/SC/retire) |", "|---|---|---|---|---|"]
-    by_turn = {}
+    by_turn, by_turn_all, tot_g, tot_all = {}, {}, 0, 0
     for y, r in out["races"].items():
         c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart")}
         dr = r["dropped"]
         lines.append(f"| {y} | {c['green']} | {c['lap1']} | {c['restart']} | {dr['pit']}/{dr['neutral']}/{dr['retire']} |")
+        tot_g += c["green"]; tot_all += sum(c.values())
         for p in r["passes"]:
+            by_turn_all[p["turn"]] = by_turn_all.get(p["turn"], 0) + 1
             if p["cat"] == "green":
                 by_turn[p["turn"]] = by_turn.get(p["turn"], 0) + 1
-    lines += ["", "| Turn | Green-flag passes (all years) |", "|---|---|"]
-    lines += [f"| T{t} | {n} |" for t, n in sorted(by_turn.items(), key=lambda kv: -kv[1])]
+    lines += ["", f"Avg per race ({n_races} races): {tot_g / n_races:.1f} green-flag, "
+                  f"{tot_all / n_races:.1f} incl. lap 1 and restarts", "",
+              "| Turn | Green total | Green avg/race | All avg/race |", "|---|---|---|---|"]
+    lines += [f"| T{t} | {by_turn.get(t, 0)} | {by_turn.get(t, 0) / n_races:.1f} | {n / n_races:.1f} |"
+              for t, n in sorted(by_turn_all.items(), key=lambda kv: -by_turn.get(kv[0], 0))]
     summary = "\n".join(lines)
     print(summary)
     if not out["races"]:

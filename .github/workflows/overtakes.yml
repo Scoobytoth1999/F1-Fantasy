@@ -43,18 +43,28 @@ jobs:
           { grep -v -E " INFO | DEBUG " raw.log || true; } | tail -c 60000 > overtakes-run.log
           echo "exit status: $status" >> overtakes-run.log
           cat overtakes-run.log
+          # surface the result as an annotation (readable via the checks API)
+          msg=$(tail -c 3500 overtakes-run.log | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"}{print}')
+          echo "::notice title=Overtake summary::$msg"
           exit $status
 
       - name: Commit data and run log
         if: always()
         run: |
-          git add overtakes-run.log 2>/dev/null || true
-          [ -f overtakes-cota.json ] && git add overtakes-cota.json
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-            exit 0
+          set +e
+          {
+            git config user.name  "results-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add overtakes-run.log
+            if [ -f overtakes-cota.json ]; then git add overtakes-cota.json; fi
+            if git diff --cached --quiet; then echo "No changes to commit."; exit 0; fi
+            git commit -m "Update COTA overtake data" &&
+            git pull --rebase origin main &&
+            git push origin HEAD:main
+          } > commit.log 2>&1
+          rc=$?
+          cat commit.log
+          if [ $rc -ne 0 ]; then
+            echo "::error title=Commit failed::$(tail -c 1500 commit.log | awk 'BEGIN{ORS="%0A"}{print}')"
           fi
-          git config user.name  "results-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update COTA overtake data"
-          git push
+          exit $rc
