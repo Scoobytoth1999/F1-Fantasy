@@ -532,33 +532,71 @@
     }
 
     // ── Overtake heat map ───────────────────────────────────────────────────────
-    // Read-only. A manual GitHub Action (.github/workflows/overtakes.yml) derives
-    // every on-track pass from F1 timing data and commits overtakes-<circuit>.json.
-    // This panel only fetches that file — nothing here touches Firestore.
-    // Add a circuit by running the Action for it and listing the race id here.
-    const OVERTAKE_FILES = { "usa-2026": "overtakes-cota.json" };
+    // Read-only. A weekly GitHub Action (.github/workflows/overtakes.yml) derives
+    // every on-track pass in every Grand Prix since 2023 from OpenF1 timing data
+    // and commits overtakes-<circuit>.json (passing maps) plus overtakes-f1.json
+    // (per-race totals for the whole grid, used for the "F1 average" comparison).
+    // This panel only fetches those files — nothing here touches Firestore.
+    // To map another circuit: add it to MAP_CIRCUITS in scripts/overtakes.py,
+    // run the Action, then list the race id → file here.
+    const OVERTAKE_FILES = {
+      "usa-2026": "overtakes-austin.json",
+      "mex-2026": "overtakes-mexico-city.json",
+      "bra-2026": "overtakes-interlagos.json",
+      "lv-2026":  "overtakes-las-vegas.json",
+      "qat-2026": "overtakes-lusail.json",
+      "abu-2026": "overtakes-yas-marina.json",
+    };
     const OT_HEAT = ["#F5C86B", "#EC9A2A", "#D85A30", "#A32D2D"];
     const OT_CATS = ["green", "lap1", "restart", "incident"];
 
-    async function loadOvertakes(file) {
+    async function loadOvertakes(file, check = j => j.track) {
       for (const base of [`https://raw.githubusercontent.com/Scoobytoth1999/F1-Fantasy/main/${file}`, file]) {
         try {
           const res = await fetch(`${base}?t=${Date.now()}`, { cache:"no-store" });
           if (!res.ok) continue;
           const json = await res.json();
-          if (json && json.races && json.track) return json;
+          if (json && json.races && check(json)) return json;
         } catch(e) { /* try the next source */ }
       }
       return null;
     }
+
+    // How a circuit compares with every Grand Prix in the same seasons.
+    // rows = overtakes-f1.json races; returns null if there's nothing to compare.
+    function passComparison(rows, circuit, years, incAll) {
+      const n = r => incAll ? r.green + r.lap1 + r.restart + r.incident : r.green;
+      const inYears = rows.filter(r => years.includes(String(r.year)));
+      if (!inYears.length) return null;
+      const f1Avg = inYears.reduce((a, r) => a + n(r), 0) / inYears.length;
+      const byCircuit = {};
+      inYears.forEach(r => { (byCircuit[r.circuit] = byCircuit[r.circuit] || []).push(n(r)); });
+      const avgs = Object.entries(byCircuit).map(([c, v]) => [c, v.reduce((a, b) => a + b, 0) / v.length])
+        .sort((a, b) => b[1] - a[1]);
+      const rank = avgs.findIndex(([c]) => c === circuit) + 1;
+      return { f1Avg, races: inYears.length, rank, of: avgs.length };
+    }
+    function passRating(trackAvg, f1Avg) {
+      const r = trackAvg / f1Avg;
+      if (r >= 1.15) return { label:"High-passing track",  color:"#1E7B47", bg:"rgba(30,123,71,.12)" };
+      if (r <= 0.85) return { label:"Low-passing track",   color:"#A32D2D", bg:"rgba(163,45,45,.10)" };
+      return               { label:"About F1 average",    color:"var(--text)", bg:"var(--card)" };
+    }
+    const ordinal = n => n + (["th","st","nd","rd"][(n % 100 - 20) % 10] || ["th","st","nd","rd"][n % 100] || "th");
 
     function OvertakeSheet({ file, onClose }) {
       const [data, setData]   = useState(undefined);   // undefined = loading, null = failed
       const [year, setYear]   = useState("All");
       const [incAll, setIncAll] = useState(false);
       const [sel, setSel]     = useState(null);
+      const [f1, setF1]       = useState(null);         // whole-grid totals; panel works without it
 
-      useEffect(() => { let live = true; loadOvertakes(file).then(j => live && setData(j)); return () => { live = false; }; }, [file]);
+      useEffect(() => {
+        let live = true;
+        loadOvertakes(file).then(j => live && setData(j));
+        loadOvertakes("overtakes-f1.json", j => Array.isArray(j.races)).then(j => live && setF1(j));
+        return () => { live = false; };
+      }, [file]);
       useEffect(() => {
         const onKey = e => { if (e.key === "Escape") onClose(); };
         window.addEventListener("keydown", onKey);
@@ -624,6 +662,14 @@
         </div>
       );
       const top = rows[0];
+      const trackAvg = total / nRaces;
+      const cmp = f1 ? passComparison(f1.races, data.circuit, useYears, incAll) : null;
+      const rating = cmp ? passRating(trackAvg, cmp.f1Avg) : null;
+      const f1ByYear = f1 ? Object.fromEntries(years.map(y => {
+        const c = passComparison(f1.races, data.circuit, [y], incAll);
+        return [y, c ? c.f1Avg : null];
+      })) : {};
+      const yScale = Math.max(yMax, ...Object.values(f1ByYear).filter(v => v != null)) * 1.05;
 
       return shell(<>
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:4 }}>
@@ -642,10 +688,37 @@
           Include lap 1, safety-car restarts and spins
         </label>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:8, marginBottom:8 }}>
-          {tile(nRaces > 1 ? "Avg passes per race" : "Passes in the race", per(total), nRaces > 1 ? `${total} over ${nRaces} races` : null)}
-          {top ? tile("Hot spot", `Turn ${top[0]}`, `${per(top[1])}${nRaces > 1 ? " per race" : ""} · ${Math.round(top[1] / total * 100)}% of passes`) : tile("Hot spot", "—")}
+        <div style={{ background:"var(--field)", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+          <div style={{ display:"flex", alignItems:"stretch", gap:12 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:11, color:C.dim }}>{nRaces > 1 ? "This track, per race" : `This track, ${year}`}</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:30, lineHeight:1.1 }}>{trackAvg.toFixed(1)}</div>
+              <div style={{ fontSize:11, color:C.muted }}>{nRaces > 1 ? `${total} passes over ${nRaces} races` : "passes"}</div>
+            </div>
+            <div style={{ width:1, background:C.border }} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:11, color:C.dim }}>{nRaces > 1 ? "F1 average, per race" : `F1 average, ${year}`}</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:30, lineHeight:1.1, color: cmp ? "var(--text)" : C.muted }}>{cmp ? cmp.f1Avg.toFixed(1) : "—"}</div>
+              <div style={{ fontSize:11, color:C.muted }}>{cmp ? `across ${cmp.races} Grands Prix` : f1 === null ? "loading…" : ""}</div>
+            </div>
+          </div>
+          {rating && (
+            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginTop:9 }}>
+              <span style={{ fontSize:11, fontWeight:700, letterSpacing:".04em", padding:"4px 9px", borderRadius:999, color:rating.color, background:rating.bg }}>
+                {rating.label}
+              </span>
+              <span style={{ fontSize:11.5, color:C.dim }}>
+                {Math.round((trackAvg / cmp.f1Avg - 1) * 100) >= 0 ? "+" : ""}{Math.round((trackAvg / cmp.f1Avg - 1) * 100)}% vs F1 average
+                {cmp.rank > 0 && <> · {ordinal(cmp.rank)} of {cmp.of} tracks</>}
+              </span>
+            </div>
+          )}
         </div>
+        {top && (
+          <div style={{ fontSize:12.5, color:"var(--text)", margin:"0 2px 6px" }}>
+            Hot spot: <b>Turn {top[0]}</b> · {per(top[1])}{nRaces > 1 ? " per race" : " passes"} · {Math.round(top[1] / total * 100)}% of passes
+          </div>
+        )}
 
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", display:"block" }} role="img" aria-label="Circuit map with overtakes per turn">
           <polyline points={`${line} ${line.split(" ")[0]}`} fill="none" stroke="var(--muted)" strokeOpacity=".55" strokeWidth="7" strokeLinejoin="round" />
@@ -722,13 +795,20 @@
         </table>
 
         {years.length > 1 && <>
-          <div style={{ fontSize:11, fontWeight:700, letterSpacing:".12em", textTransform:"uppercase", color:C.dim, margin:"16px 0 8px" }}>Passes per race by year</div>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:".12em", textTransform:"uppercase", color:C.dim, margin:"16px 0 4px" }}>Passes per race by year</div>
+          {Object.values(f1ByYear).some(v => v != null) && (
+            <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:C.dim, marginBottom:8 }}>
+              <span style={{ width:2, height:12, borderRadius:1, background:"#D85A30" }} /> F1 average that year
+            </div>
+          )}
           <div style={{ display:"grid", gap:6 }}>
             {yearTot.map(([y, n]) => (
               <div key={y} style={{ display:"grid", gridTemplateColumns:"40px 1fr 30px", alignItems:"center", gap:8, fontSize:12 }}>
                 <span style={{ color:C.dim }}>{y}</span>
-                <div style={{ height:10, borderRadius:5, background:"var(--field)" }}>
-                  <div style={{ height:"100%", borderRadius:5, width:`${n / yMax * 100}%`, background: year === y ? "var(--text)" : C.muted }} />
+                <div style={{ position:"relative", height:10, borderRadius:5, background:"var(--field)" }}>
+                  <div style={{ height:"100%", borderRadius:5, width:`${n / yScale * 100}%`, background: year === y ? "var(--text)" : C.muted }} />
+                  {f1ByYear[y] != null && <div title={`F1 average ${f1ByYear[y].toFixed(1)}`} style={{ position:"absolute", top:-3, bottom:-3, width:2, borderRadius:1,
+                    left:`calc(${f1ByYear[y] / yScale * 100}% - 1px)`, background:"#D85A30" }} />}
                 </div>
                 <span style={{ fontWeight:700, textAlign:"right" }}>{n}</span>
               </div>
@@ -740,7 +820,7 @@
           {incAll
             ? "Every position change on track, including the start, restarts and cars that spun or stopped."
             : "Green-flag racing passes only. Excludes lap 1, safety-car restarts, pit stops and passes on spun or stricken cars."}
-          {" "}Source: F1 timing data via FastF1 and OpenF1.
+          {" "}F1 average covers every Grand Prix in the same seasons, counted the same way. Source: F1 timing data via OpenF1.
         </div>
       </>);
     }
