@@ -169,120 +169,78 @@ def in_intervals(x: float, iv: list[tuple[float, float]]) -> bool:
     return any(a <= x <= b for a, b in iv)
 
 
-# ---------------------------------------------------------- FastF1 plumbing
+# ------------------------------------------------------------ analysis core
+#
+# Both data sources are normalised into one `race` dict:
+#   ref_x, ref_y   reference lap line (same units as position samples)
+#   ref_d          metres along that line
+#   corners        [(label, x, y)] in the same coordinate frame
+#   rotation       degrees, for display only
+#   abbr           {drv: "VER"}         finished {drv: bool}
+#   samples        {drv: (t, x, y)}     on-track position samples, t in seconds
+#   laps           {drv: {lap: (start_t, end_t, official_position|None, pit_lap: bool)}}
+#   grid_pos       {drv: grid slot}     neutral / restart [(t0, t1)]
+#   t_start, t_end race start and winner's finish
 
-def td(x) -> float:
-    return x.total_seconds() if x is not None and not (isinstance(x, float) and math.isnan(x)) \
-        and str(x) != "NaT" else float("nan")
+def densify(x, y, step_m=1.0, units_per_m=10.0):
+    """Resample a polyline to ~1 m spacing; returns x, y, distance (m)."""
+    seg = np.hypot(np.diff(x), np.diff(y)) / units_per_m
+    d = np.r_[0, np.cumsum(seg)]
+    keep = np.r_[True, seg > 0]
+    x, y, d = x[keep], y[keep], d[keep]
+    dd = np.arange(0, d[-1], step_m)
+    return np.interp(dd, d, x), np.interp(dd, d, y), dd
 
 
-def analyse_year(year: int) -> dict:
-    import fastf1
+def analyse(race: dict) -> dict:
     from scipy.spatial import cKDTree
-
-    import time
-    for attempt in range(2):
-        s = fastf1.get_session(year, EVENT, "R")
-        s.load(laps=True, telemetry=True, weather=False, messages=True)
-        try:
-            if len(s.laps) and s.pos_data:
-                break
-        except Exception:
-            pass
-        print(f"{year}: data incomplete, retry {attempt + 1} in 60s", flush=True)
-        time.sleep(60)
-    else:
-        raise RuntimeError(f"{year}: timing data unavailable after retries")
-    ci = s.get_circuit_info()
-
-    ref = s.laps.pick_fastest().get_telemetry()
-    rx, ry, rd = ref["X"].to_numpy(float), ref["Y"].to_numpy(float), ref["Distance"].to_numpy(float)
+    rx, ry, rd = race["ref_x"], race["ref_y"], race["ref_d"]
     L = float(rd[-1])
     tree = cKDTree(np.c_[rx, ry])
 
-    corners = ci.corners.sort_values("Distance")
-    apex = [float(v) for v in corners["Distance"]]
-    labels = [f"{int(n)}{l or ''}" for n, l in zip(corners["Number"], corners["Letter"])]
+    cor = []
+    for lab, x, y in race["corners"]:
+        _, i = tree.query([x, y])
+        cor.append((float(rd[i]), lab, x, y))
+    cor.sort()
+    apex = [c[0] for c in cor]
+    labels = [c[1] for c in cor]
 
-    laps = s.laps
-    res = s.results
-    status = {str(r.DriverNumber): str(r.Status) for r in res.itertuples()}
-    abbr = {str(r.DriverNumber): str(r.Abbreviation) for r in res.itertuples()}
-
-    winner = str(res.sort_values("Position").iloc[0].DriverNumber)
-    t_end = np.nanmax([td(x) for x in laps.pick_drivers(winner)["Time"]])
-    t_start = np.nanmin([td(x) for x in laps[laps["LapNumber"] == 1]["LapStartTime"]])
-    med_lap = float(np.nanmedian([td(x) for x in laps["LapTime"]]))
-
-    # neutralisation and restart windows from track status
-    ts = s.track_status
-    neutral, restart = [], []
-    rows = [(td(r.Time), str(r.Status)) for r in ts.itertuples()]
-    for i, (t0, st) in enumerate(rows):
-        t1 = rows[i + 1][0] if i + 1 < len(rows) else t_end
-        if st in NEUTRAL:
-            neutral.append((t0, t1))
-            nxt = rows[i + 1][1] if i + 1 < len(rows) else "1"
-            if nxt not in NEUTRAL:
-                restart.append((t1, t1 + med_lap))
-
-    # per-driver pit windows, lap-1 end, last data time
-    pit, lap1_end, last_t = {}, {}, {}
-    for drv in status:
-        dl = laps.pick_drivers(drv)
-        ins = sorted(x for x in (td(v) for v in dl["PitInTime"]) if not math.isnan(x))
-        outs = sorted(x for x in (td(v) for v in dl["PitOutTime"]) if not math.isnan(x) and x > t_start)
-        pit[drv] = pit_windows(ins, outs)
-        l1 = dl[dl["LapNumber"] == 1]
-        lap1_end[drv] = td(l1.iloc[0].Time) if len(l1) else t_start + med_lap
-        last_t[drv] = np.nanmax([td(x) for x in dl["Time"]]) if len(dl) else t_start
-
+    t_start, t_end = race["t_start"], race["t_end"]
     grid = np.arange(t_start, t_end, GRID_DT)
-    P, D = {}, {}
-    for drv, pos in s.pos_data.items():
-        drv = str(drv)
-        if drv not in status:
-            continue
-        pt = pos["SessionTime"].dt.total_seconds().to_numpy()
-        m = (pt >= t_start - 5) & (pt <= t_end + 5) & (pos["Status"].to_numpy() == "OnTrack")
+    last_t = {drv: max((e for _, e, _, _ in lp.values() if e == e), default=t_start)
+              for drv, lp in race["laps"].items()}
+    P = {}
+    for drv, (pt, px, py) in race["samples"].items():
+        m = (pt >= t_start - 5) & (pt <= t_end + 5)
         if m.sum() < 50:
             continue
         pt = pt[m]
-        _, idx = tree.query(np.c_[pos["X"].to_numpy(float)[m], pos["Y"].to_numpy(float)[m]])
-        d = rd[idx]
-        prog = unwrap_progress(d, pt, L)
-        g = resample(grid, pt, prog)
-        g[grid > last_t[drv] + 5] = np.nan
+        _, idx = tree.query(np.c_[px[m], py[m]])
+        g = resample(grid, pt, unwrap_progress(rd[idx], pt, L))
+        g[grid > last_t.get(drv, t_end) + 5] = np.nan
         P[drv] = g
 
-    # ---- count passes from the official lap chart
     pos, skip, retired_from, lap_t = {}, {}, {}, {}
-    for drv in status:
-        dl = laps.pick_drivers(drv)
+    for drv, lp in race["laps"].items():
         pos[drv], skip[drv], lap_t[drv] = {}, set(), {}
-        for r in dl.itertuples():
-            n = int(r.LapNumber)
-            if not (isinstance(r.Position, float) and math.isnan(r.Position)):
-                pos[drv][n] = float(r.Position)
-            if not math.isnan(td(r.PitInTime)):
-                skip[drv].add(n)
-            if not math.isnan(td(r.PitOutTime)) and n > 1:
-                skip[drv].add(n)
-            lap_t[drv][n] = (td(r.LapStartTime), td(r.Time))
-        st = status[drv]
-        if not (st == "Finished" or "Lap" in st) and pos[drv]:
-            retired_from[drv] = max(pos[drv])          # its final, slowing lap
-    grid_pos = {}
-    for r in res.itertuples():
-        g = float(r.GridPosition) if not math.isnan(float(r.GridPosition)) else 0.0
-        grid_pos[str(r.DriverNumber)] = g if g > 0 else 99.0   # pit-lane starters at the back
+        for n, (s0, s1, p, pit) in lp.items():
+            if p is not None:
+                pos[drv][n] = float(p)
+            if pit:
+                skip[drv].update({n, n + 1})      # in-lap and out-lap
+            lap_t[drv][n] = (s0, s1)
+        if not race["finished"].get(drv, True) and pos[drv]:
+            retired_from[drv] = max(pos[drv])
+    abbr = race["abbr"]
 
     passes, dropped, unlocated = [], {"neutral": 0}, 0
-    for n, win, lose in lap_chart_swaps(pos, grid_pos, skip, retired_from):
-        # ---- locate it on track with position data
+    for n, win, lose in lap_chart_swaps(pos, race["grid_pos"], skip, retired_from):
         spans = [lap_t[d].get(n, (np.nan, np.nan)) for d in (win, lose)]
         lo = np.nanmin([s0 for s0, _ in spans] + [np.inf]) - 5
         hi = np.nanmax([s1 for _, s1 in spans] + [-np.inf]) + 5
+        if n == 1:
+            lo = t_start - 5
         tc, d = None, None
         if win in P and lose in P and np.isfinite(lo) and np.isfinite(hi):
             m = (grid >= lo) & (grid <= hi)
@@ -291,36 +249,251 @@ def analyse_year(year: int) -> dict:
                 tc = ev[-1][0]
                 d = float(np.interp(tc, grid, P[win])) % L
         t_ref = tc if tc is not None else spans[0][0]
-        if t_ref is not None and not math.isnan(t_ref) and in_intervals(t_ref, neutral):
+        has_t = t_ref is not None and not math.isnan(t_ref)
+        if has_t and in_intervals(t_ref, race["neutral"]):
             dropped["neutral"] += 1
             continue
         if d is None:
             unlocated += 1
-        cat = "lap1" if n == 1 else \
-              "restart" if (t_ref is not None and in_intervals(t_ref, restart)) else "green"
+        cat = "lap1" if n == 1 else "restart" if has_t and in_intervals(t_ref, race["restart"]) else "green"
         passes.append({"lap": n, "turn": assign_corner(d, apex, labels, L) if d is not None else "?",
                        "cat": cat, "by": abbr.get(win, win), "on": abbr.get(lose, lose),
                        "d": round(d) if d is not None else None})
     dropped["unlocated"] = unlocated
-
     passes.sort(key=lambda p: (p["lap"], p["d"] if p["d"] is not None else -1))
-    rot = math.radians(float(ci.rotation))
+
+    rot = math.radians(float(race["rotation"]))
     def rotxy(x, y):
         return [round(x * math.cos(rot) - y * math.sin(rot)), round(x * math.sin(rot) + y * math.cos(rot))]
     step = max(1, len(rx) // 300)
     return {
         "lapLength": round(L),
         "track": [rotxy(x, y) for x, y in zip(rx[::step], ry[::step])],
-        "corners": [{"turn": lab, "d": round(a), "xy": rotxy(float(x), float(y))}
-                    for lab, a, x, y in zip(labels, apex, corners["X"], corners["Y"])],
+        "corners": [{"turn": lab, "d": round(a), "xy": rotxy(float(x), float(y))} for a, lab, x, y in cor],
         "passes": passes,
         "dropped": dropped,
+        "source": race.get("source", ""),
     }
 
 
-def combine(results: dict, out_path: str) -> int:
-    """Merge per-year results into one file and print the summary tables."""
+def neutral_windows(events, t_end, med_lap):
+    """events: [(t, kind)] with kind 'start' or 'end'. Returns neutral, restart windows."""
+    neutral, restart, open_t = [], [], None
+    for t, kind in sorted(events):
+        if kind == "start" and open_t is None:
+            open_t = t
+        elif kind == "end" and open_t is not None:
+            neutral.append((open_t, t)); restart.append((t, t + med_lap)); open_t = None
+    if open_t is not None:
+        neutral.append((open_t, t_end))
+    return neutral, restart
+
+
+# ---------------------------------------------------------- source: FastF1
+
+def td(x) -> float:
+    return x.total_seconds() if x is not None and not (isinstance(x, float) and math.isnan(x)) \
+        and str(x) != "NaT" else float("nan")
+
+
+def load_fastf1(year: int) -> dict:
+    import fastf1
+    s = fastf1.get_session(year, EVENT, "R")
+    s.load(laps=True, telemetry=True, weather=False, messages=True)
+    if not (len(s.laps) and s.pos_data):
+        raise RuntimeError(f"{year}: FastF1 timing data unavailable")
+    ci = s.get_circuit_info()
+    ref = s.laps.pick_fastest().get_telemetry()
+    rx, ry, rd = densify(ref["X"].to_numpy(float), ref["Y"].to_numpy(float))
+    res, laps = s.results, s.laps
+    abbr = {str(r.DriverNumber): str(r.Abbreviation) for r in res.itertuples()}
+    finished = {str(r.DriverNumber): (str(r.Status) == "Finished" or "Lap" in str(r.Status))
+                for r in res.itertuples()}
+    winner = str(res.sort_values("Position").iloc[0].DriverNumber)
+    t_end = np.nanmax([td(x) for x in laps.pick_drivers(winner)["Time"]])
+    t_start = np.nanmin([td(x) for x in laps[laps["LapNumber"] == 1]["LapStartTime"]])
+    med_lap = float(np.nanmedian([td(x) for x in laps["LapTime"]]))
+
+    ev, prev = [], "1"
+    for r in s.track_status.itertuples():
+        st = str(r.Status)
+        if st in NEUTRAL and prev not in NEUTRAL:
+            ev.append((td(r.Time), "start"))
+        elif st not in NEUTRAL and prev in NEUTRAL:
+            ev.append((td(r.Time), "end"))
+        prev = st
+    neutral, restart = neutral_windows(ev, t_end, med_lap)
+
+    lp = {}
+    for drv in abbr:
+        lp[drv] = {}
+        for r in laps.pick_drivers(drv).itertuples():
+            p = None if (isinstance(r.Position, float) and math.isnan(r.Position)) else float(r.Position)
+            lp[drv][int(r.LapNumber)] = (td(r.LapStartTime), td(r.Time), p, not math.isnan(td(r.PitInTime)))
+    grid_pos = {}
+    for r in res.itertuples():
+        g = float(r.GridPosition) if not math.isnan(float(r.GridPosition)) else 0.0
+        grid_pos[str(r.DriverNumber)] = g if g > 0 else 99.0
+    samples = {}
+    for drv, pos in s.pos_data.items():
+        m = pos["Status"].to_numpy() == "OnTrack"
+        samples[str(drv)] = (pos["SessionTime"].dt.total_seconds().to_numpy()[m],
+                             pos["X"].to_numpy(float)[m], pos["Y"].to_numpy(float)[m])
+    corners = [(f"{int(n)}{l or ''}", float(x), float(y))
+               for n, l, x, y in zip(ci.corners["Number"], ci.corners["Letter"], ci.corners["X"], ci.corners["Y"])]
+    return dict(ref_x=rx, ref_y=ry, ref_d=rd, corners=corners, rotation=float(ci.rotation),
+                abbr=abbr, finished=finished, samples=samples, laps=lp, grid_pos=grid_pos,
+                neutral=neutral, restart=restart, t_start=t_start, t_end=t_end, source="FastF1")
+
+
+# ---------------------------------------------------------- source: OpenF1
+
+OPENF1 = "https://api.openf1.org/v1/"
+MULTIVIEWER = "https://api.multiviewer.app/api/v1/circuits/{key}/{year}"
+
+
+def get_json(url: str, tries=5):
+    import time, urllib.request, urllib.error
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "f1-fantasy-overtakes/1.0"})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                time.sleep(0.4)          # stay under OpenF1's free rate limit
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and i < tries - 1:
+                time.sleep(5 * (i + 1)); continue
+            raise
+        except urllib.error.URLError:
+            if i < tries - 1:
+                time.sleep(5 * (i + 1)); continue
+            raise
+
+
+def iso(s: str) -> float:
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+
+
+def load_openf1(year: int) -> dict:
+    sess = get_json(f"{OPENF1}sessions?year={year}&session_name=Race&location=Austin")
+    if not sess:
+        raise RuntimeError(f"{year}: no OpenF1 race session for Austin")
+    k = sess[0]["session_key"]
+    circ = get_json(MULTIVIEWER.format(key=sess[0]["circuit_key"], year=year))
+
+    drivers = get_json(f"{OPENF1}drivers?session_key={k}")
+    abbr = {str(d["driver_number"]): d["name_acronym"] for d in drivers}
+    results = get_json(f"{OPENF1}session_result?session_key={k}")
+    finished = {str(r["driver_number"]): not (r.get("dnf") or r.get("dns") or r.get("dsq")) for r in results}
+    laps_raw = get_json(f"{OPENF1}laps?session_key={k}")
+    pits = get_json(f"{OPENF1}pit?session_key={k}")
+    posr = get_json(f"{OPENF1}position?session_key={k}")
+    rc = get_json(f"{OPENF1}race_control?session_key={k}")
+
+    # lap windows per driver
+    by_drv = {}
+    for l in laps_raw:
+        by_drv.setdefault(str(l["driver_number"]), {})[int(l["lap_number"])] = l
+    durs = [l["lap_duration"] for l in laps_raw if l.get("lap_duration") and not l.get("is_pit_out_lap")]
+    med_lap = float(np.median(durs))
+    lap_win = {}
+    for drv, ls in by_drv.items():
+        lap_win[drv] = {}
+        for n, l in ls.items():
+            s0 = iso(l["date_start"]) if l.get("date_start") else None
+            nxt = ls.get(n + 1)
+            if nxt and nxt.get("date_start"):
+                s1 = iso(nxt["date_start"])
+            elif s0 is not None and l.get("lap_duration"):
+                s1 = s0 + l["lap_duration"]
+            else:
+                s1 = None
+            if s0 is None and s1 is not None:      # lap 1 often has no start stamp
+                s0 = s1 - (l.get("lap_duration") or med_lap * 1.1)
+            if s0 is not None and s1 is not None:
+                lap_win[drv][n] = (s0, s1)
+
+    # official position at each lap end = latest position update at or before it
+    timeline = {}
+    for p in sorted(posr, key=lambda p: p["date"]):
+        timeline.setdefault(str(p["driver_number"]), []).append((iso(p["date"]), p["position"]))
+    grid_pos = {drv: float(tl[0][1]) for drv, tl in timeline.items()}
+
+    def pos_at(drv, t):
+        tl = timeline.get(drv, [])
+        i = int(np.searchsorted([x[0] for x in tl], t + 1.0, side="right")) - 1
+        return float(tl[i][1]) if i >= 0 else None
+
+    pit_laps = {}
+    for p in pits:
+        if p.get("lap_number"):
+            pit_laps.setdefault(str(p["driver_number"]), set()).add(int(p["lap_number"]))
+
+    lp = {}
+    for drv, wins in lap_win.items():
+        lp[drv] = {n: (s0, s1, pos_at(drv, s1), n in pit_laps.get(drv, ())) for n, (s0, s1) in wins.items()}
+
+    t_start = min(w[1][0] for w in ((d, lap_win[d].get(1)) for d in lap_win) if w[1])
+    winner = next(str(r["driver_number"]) for r in results if r.get("position") == 1)
+    t_end = max(s1 for _, s1 in lap_win[winner].values())
+
+    ev = []
+    for m in rc:
+        msg, t = (m.get("message") or "").upper(), iso(m["date"])
+        if ("SAFETY CAR DEPLOYED" in msg) or (m.get("flag") == "RED"):
+            ev.append((t, "start"))
+        elif "VIRTUAL SAFETY CAR ENDING" in msg or "VSC ENDING" in msg:
+            ev.append((t + 10, "end"))
+        elif "SAFETY CAR IN THIS LAP" in msg:
+            ev.append((t + med_lap * 0.8, "end"))
+        elif "RESUME" in msg and "RACE" in msg:
+            ev.append((t, "end"))
+    neutral, restart = neutral_windows(ev, t_end, med_lap)
+
+    # reference line: fastest clean lap's location samples
+    fl = min((l for l in laps_raw if l.get("lap_duration") and l.get("date_start") and not l.get("is_pit_out_lap")),
+             key=lambda l: l["lap_duration"])
+    a = fl["date_start"]
+    b = datetime.fromtimestamp(iso(a) + fl["lap_duration"], tz=timezone.utc).isoformat()
+    loc = get_json(f"{OPENF1}location?session_key={k}&driver_number={fl['driver_number']}"
+                   f"&date>={a}&date<={b}")
+    xs = np.array([p["x"] for p in loc], float); ys = np.array([p["y"] for p in loc], float)
+    rx, ry, rd = densify(xs, ys)
+
+    samples = {}
+    t0 = datetime.fromtimestamp(t_start - 120, tz=timezone.utc).isoformat()
+    t1 = datetime.fromtimestamp(t_end + 60, tz=timezone.utc).isoformat()
+    for drv in abbr:
+        loc = get_json(f"{OPENF1}location?session_key={k}&driver_number={drv}&date>={t0}&date<={t1}")
+        pts = [(iso(p["date"]), p["x"], p["y"]) for p in loc if p["x"] or p["y"]]
+        if pts:
+            arr = np.array(pts, float)
+            samples[drv] = (arr[:, 0], arr[:, 1], arr[:, 2])
+
+    corners = [(f"{c['number']}{c.get('letter') or ''}", float(c["trackPosition"]["x"]), float(c["trackPosition"]["y"]))
+               for c in circ["corners"]]
+    return dict(ref_x=rx, ref_y=ry, ref_d=rd, corners=corners, rotation=float(circ.get("rotation", 0)),
+                abbr=abbr, finished=finished, samples=samples, laps=lp, grid_pos=grid_pos,
+                neutral=neutral, restart=restart, t_start=t_start, t_end=t_end, source="OpenF1")
+
+
+def analyse_year(year: int) -> dict:
+    """FastF1 for 2022 (OpenF1 starts in 2023); OpenF1 from 2023 on."""
+    race = load_fastf1(year) if year < 2023 else load_openf1(year)
+    return analyse(race)
+
+
+def combine(results: dict, out_path: str, previous: str | None = None) -> int:
+    """Merge per-year results into one file and print the summary tables.
+
+    Years missing from `results` are carried over from `previous` (the last
+    committed file), so one failed download doesn't erase a year.
+    """
     import os
+    prev = {}
+    if previous and os.path.exists(previous):
+        with open(previous) as f:
+            prev = json.load(f)
     out = {"circuit": "Circuit of the Americas", "event": EVENT,
            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "method": "Passes counted from the official lap chart (relative order flips between "
@@ -334,6 +507,13 @@ def combine(results: dict, out_path: str) -> int:
         for k in ("track", "corners", "lapLength"):
             r.pop(k, None)
         out["races"][str(y)] = r
+    for y, r in prev.get("races", {}).items():
+        if y not in out["races"] and r.get("passes") is not None:
+            print(f"{y}: not re-fetched this run; keeping previous result")
+            out["races"][y] = r
+            if "track" not in out and "track" in prev:
+                out["track"], out["corners"], out["lapLength"] = prev["track"], prev["corners"], prev["lapLength"]
+    out["races"] = dict(sorted(out["races"].items()))
 
     n_races = len(out["races"])
     if not n_races:
@@ -372,6 +552,7 @@ def main(argv=None):
     ap.add_argument("--part", help="write a single-year result here instead of combining")
     ap.add_argument("--combine", nargs="+", help="merge these part files")
     ap.add_argument("--out", default="overtakes-cota.json")
+    ap.add_argument("--previous", help="earlier output to carry missing years over from")
     ap.add_argument("--cache", default=".fastf1-cache")
     args = ap.parse_args(argv)
 
@@ -381,7 +562,7 @@ def main(argv=None):
             with open(path) as f:
                 part = json.load(f)
             results[int(part["year"])] = part["result"]
-        return combine(results, args.out)
+        return combine(results, args.out, args.previous)
 
     import os, fastf1
     os.makedirs(args.cache, exist_ok=True)
@@ -401,7 +582,7 @@ def main(argv=None):
         with open(args.part, "w") as f:
             json.dump({"year": y, "result": r}, f, separators=(",", ":"))
         return 0
-    return combine(results, args.out)
+    return combine(results, args.out, args.previous)
 
 
 if __name__ == "__main__":

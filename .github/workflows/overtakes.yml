@@ -2,8 +2,8 @@ name: Build overtake heat map data
 
 # Manual only: Actions tab -> "Build overtake heat map data" -> Run workflow.
 # Writes overtakes-cota.json; does not touch index.html.
-# Each race year runs on its own runner (F1's timing server throttles a single
-# runner after one full race download), then a final job merges and commits.
+# Each race year runs on its own runner, then a final job merges and commits.
+# 2022 comes from F1's archive via FastF1 (cached); 2023+ from OpenF1.
 on:
   workflow_dispatch:
     inputs:
@@ -34,20 +34,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install FastF1
-        run: pip install "fastf1>=3.8,<4" scipy
+        run: pip install "fastf1>=3.8,<4" scipy numpy
 
       - name: Cache F1 timing data
         uses: actions/cache@v4
         with:
           path: .fastf1-cache
           key: fastf1-cota-${{ matrix.year }}
-
-      - name: Probe F1 timing archive
-        run: |
-          for u in "https://livetiming.formula1.com/static/${{ matrix.year }}/Index.json" "https://api.openf1.org/v1/sessions?year=${{ matrix.year }}&session_name=Race&location=Austin"; do
-            code=$(curl -s -o probe.txt -w "%{http_code}" -A "Mozilla/5.0" "$u"); echo "$u -> $code $(head -c 200 probe.txt)"
-            echo "::notice title=probe ${{ matrix.year }}::$u -> $code $(head -c 300 probe.txt | tr -d '\n%')"
-          done
 
       - name: Analyse ${{ matrix.year }}
         run: |
@@ -85,8 +78,8 @@ jobs:
       - name: Combine years
         run: |
           python -c "import numpy" 2>/dev/null || pip install numpy
-          ls part-*.json
-          python scripts/overtakes.py --combine part-*.json --out overtakes-cota.json | tee overtakes-run.log
+          ls part-*.json 2>/dev/null || echo 'no new parts'
+          python scripts/overtakes.py --combine part-*.json --previous overtakes-cota.json --out overtakes-cota.json | tee overtakes-run.log
           msg=$(sed 's/%/%25/g' overtakes-run.log | awk 'BEGIN{ORS="%0A"}{print}')
           echo "::notice title=Overtake summary::$msg"
 
