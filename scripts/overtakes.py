@@ -359,6 +359,10 @@ def iso(s: str) -> float:
     return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
 
 
+class NoRaceData(Exception):
+    pass
+
+
 def load_openf1(k: int, circuit_key: int, year: int) -> dict:
     circ = get_json(MULTIVIEWER.format(key=circuit_key, year=year))
 
@@ -367,6 +371,8 @@ def load_openf1(k: int, circuit_key: int, year: int) -> dict:
     results = get_json(f"{OPENF1}session_result?session_key={k}")
     finished = {str(r["driver_number"]): not (r.get("dnf") or r.get("dns") or r.get("dsq")) for r in results}
     laps_raw = get_json(f"{OPENF1}laps?session_key={k}")
+    if not laps_raw or not results:
+        raise NoRaceData("no lap or result data (race cancelled or not yet published)")
     pits = get_json(f"{OPENF1}pit?session_key={k}")
     posr = get_json(f"{OPENF1}position?session_key={k}")
     rc = get_json(f"{OPENF1}race_control?session_key={k}")
@@ -498,13 +504,21 @@ def plan(years: list[int], force: bool = False) -> list[dict]:
 
 def run_race(item: dict) -> str:
     import os
-    race = load_openf1(int(item["key"]), int(item["circuit_key"]), int(item["year"]))
-    r = analyse(race)
-    r["rc_counts"] = race.get("rc_counts", {})
     out = {k: item[k] for k in ("key", "year", "circuit", "meeting", "date")}
-    out["result"] = r
     os.makedirs(RACES_DIR, exist_ok=True)
     path = race_file(item["year"], item["circuit"])
+    try:
+        race = load_openf1(int(item["key"]), int(item["circuit_key"]), int(item["year"]))
+    except NoRaceData as e:
+        # Recorded so it isn't retried every week; ignored by --build.
+        out["no_data"] = str(e)
+        with open(path, "w") as f:
+            json.dump(out, f, separators=(",", ":"))
+        print(f"{item['year']} {item['meeting']}: {e}")
+        return path
+    r = analyse(race)
+    r["rc_counts"] = race.get("rc_counts", {})
+    out["result"] = r
     with open(path, "w") as f:
         json.dump(out, f, separators=(",", ":"))
     c = {k: sum(p["cat"] == k for p in r["passes"]) for k in ("green", "lap1", "restart")}
@@ -517,7 +531,9 @@ def build(out_dir: str = ".") -> int:
     races = []
     for path in sorted(glob.glob(f"{RACES_DIR}/*.json")):
         with open(path) as f:
-            races.append(json.load(f))
+            rc = json.load(f)
+        if rc.get("result"):
+            races.append(rc)
     if not races:
         print("No race files."); return 1
     for rc in races:
