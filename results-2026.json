@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "source": "api.jolpi.ca (Jolpica-F1)",
-  "updatedAt": "2026-10-11T18:51:55.431Z",
+  "updatedAt": "2026-10-26T00:18:57.522Z",
   "races": {
     "1": {
       "round": 1,
@@ -3672,6 +3672,167 @@
           "classified": false,
           "name": "Lance Stroll",
           "code": "STR",
+          "status": "Retired"
+        }
+      ]
+    },
+    "18": {
+      "round": 18,
+      "name": "United States Grand Prix",
+      "date": "2026-10-25",
+      "gp": [
+        {
+          "pos": 1,
+          "classified": true,
+          "name": "Andrea Kimi Antonelli",
+          "code": "ANT",
+          "status": "Finished"
+        },
+        {
+          "pos": 2,
+          "classified": true,
+          "name": "Charles Leclerc",
+          "code": "LEC",
+          "status": "Finished"
+        },
+        {
+          "pos": 3,
+          "classified": true,
+          "name": "Max Verstappen",
+          "code": "VER",
+          "status": "Finished"
+        },
+        {
+          "pos": 4,
+          "classified": true,
+          "name": "Lewis Hamilton",
+          "code": "HAM",
+          "status": "Finished"
+        },
+        {
+          "pos": 5,
+          "classified": true,
+          "name": "Lando Norris",
+          "code": "NOR",
+          "status": "Finished"
+        },
+        {
+          "pos": 6,
+          "classified": true,
+          "name": "Isack Hadjar",
+          "code": "HAD",
+          "status": "Finished"
+        },
+        {
+          "pos": 7,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 8,
+          "classified": true,
+          "name": "George Russell",
+          "code": "RUS",
+          "status": "Finished"
+        },
+        {
+          "pos": 9,
+          "classified": true,
+          "name": "Liam Lawson",
+          "code": "LAW",
+          "status": "Finished"
+        },
+        {
+          "pos": 10,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
+          "status": "Finished"
+        },
+        {
+          "pos": 11,
+          "classified": true,
+          "name": "Nico Hülkenberg",
+          "code": "HUL",
+          "status": "Finished"
+        },
+        {
+          "pos": 12,
+          "classified": true,
+          "name": "Arvid Lindblad",
+          "code": "LIN",
+          "status": "Lapped"
+        },
+        {
+          "pos": 13,
+          "classified": true,
+          "name": "Gabriel Bortoleto",
+          "code": "BOR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 14,
+          "classified": true,
+          "name": "Esteban Ocon",
+          "code": "OCO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 15,
+          "classified": true,
+          "name": "Lance Stroll",
+          "code": "STR",
+          "status": "Lapped"
+        },
+        {
+          "pos": 16,
+          "classified": true,
+          "name": "Fernando Alonso",
+          "code": "ALO",
+          "status": "Lapped"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Alexander Albon",
+          "code": "ALB",
+          "status": "Lapped"
+        },
+        {
+          "pos": 18,
+          "classified": true,
+          "name": "Carlos Sainz",
+          "code": "SAI",
+          "status": "Lapped"
+        },
+        {
+          "pos": 19,
+          "classified": true,
+          "name": "Sergio Pérez",
+          "code": "PER",
+          "status": "Lapped"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Valtteri Bottas",
+          "code": "BOT",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Retired"
+        },
+        {
+          "pos": null,
+          "classified": false,
+          "name": "Oliver Bearman",
+          "code": "BEA",
           "status": "Retired"
         }
       ]
