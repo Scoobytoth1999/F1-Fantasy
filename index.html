@@ -1226,6 +1226,17 @@
       d.setDate(d.getDate() - 2); // Sprint qualifying is Friday (GP Sunday - 2 days)
       return d.toISOString().slice(0, 10);
     }
+    // Once all 1st AND 2nd picks are in, the race is locked — no more changes by
+    // anyone (admin Edit Picks included). Derived from the picks themselves, so
+    // nothing extra is written to Firestore. Admin → Races "Unlock" sets
+    // manualUnlock to override; "Lock" clears it; clearing a pick re-arms it.
+    function allPicksIn(race, players) {
+      return players.length > 0 && players.every(p => (race.picks||{})[p.id] && (race.picks2||{})[p.id]);
+    }
+    function isRaceLocked(race, players) {
+      return race.status === "locked" || (race.status !== "completed" && !race.manualUnlock && allPicksIn(race, players));
+    }
+
     // Free-for-all opens 10am the day BEFORE qualifying.
     // Normal weekend: qualifying Sat -> opens Friday 10am (GP date - 2)
     // Sprint weekend: sprint quali Fri -> opens Thursday 10am (GP date - 3)
@@ -1275,8 +1286,8 @@
       if (variant==="ghost")   return <button className="bp" style={{...b, background:"transparent", color:C.dim, border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
       return <button className="bp" style={{...b, background:"var(--surface2)", color:"var(--text)", border:`1px solid ${C.border}`}} onClick={onClick} disabled={disabled}>{children}</button>;
     }
-    const Sel = ({ value, onChange, children, style={} }) => (
-      <select value={value} onChange={onChange} style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 12px) center", ...style }}>
+    const Sel = ({ value, onChange, children, style={}, disabled=false }) => (
+      <select value={value} onChange={onChange} disabled={disabled} style={{ background:"var(--field)", border:`1px solid ${C.border}`, borderRadius:9, color:"var(--text)", padding:"9px 12px", fontSize:13, width:"100%", fontFamily:"DM Sans,sans-serif", cursor:"pointer", appearance:"none", backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"calc(100% - 12px) center", ...style, ...(disabled ? { opacity:.5, cursor:"not-allowed" } : {}) }}>
         {children}
       </select>
     );
@@ -1305,7 +1316,8 @@
       const last   = [...data.races].reverse().find(r => r.status === "completed" && !r.noLeague);
       const passMapFile = next && OVERTAKE_FILES[next.id];
       const showNewsBanner = !bannerOff && passMapFile && new Date() < parseDay(NEWS_BANNER_UNTIL);
-      const nextFFA = next && new Date() >= freeForAllTime(next) && next.status !== "locked";
+      const nextLocked = next && isRaceLocked(next, data.players);
+      const nextFFA = next && new Date() >= freeForAllTime(next) && !nextLocked;
       const rc = i => i===0?"rg":i===1?"rs":i===2?"rb":"";
       const ri = i => i===0?"👑":i===1?"🥈":i===2?"🥉":`#${i+1}`;
       const PC = { lewis:"var(--teal)", zayd:"var(--orange)", toth:"var(--accent)", mcmichael:"var(--gold)", hattner:"#7A3FD1", yogesh:"var(--green)" };
@@ -1363,7 +1375,7 @@
               <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
                 <span className="hero-chip">{Object.keys(next.picks||{}).length}/{data.players.length} picked</span>
                 <span className="hero-chip">
-                  {next.status === "locked" ? "🔒 Locked" : nextFFA ? "⚡ Free-for-all" : "Picks open"}
+                  {nextLocked ? "🔒 Locked" : nextFFA ? "⚡ Free-for-all" : "Picks open"}
                 </span>
                 {next.hasSprint && <span className="hero-chip">Sprint weekend</span>}
               </div>
@@ -1403,7 +1415,9 @@
           {next && (
             <Card>
               <ST color={C.teal}>{next.flag} {next.name} — Picks</ST>
-              {nextFFA
+              {nextLocked
+                ? <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--danger) 8%, transparent)", border:"1px solid color-mix(in srgb, var(--danger) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.red }}>🔒 All picks in — locked. No more changes.</div>
+                : nextFFA
                 ? <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--orange) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.orange }}>⚡ Free-for-all open — anyone can pick now!</div>
                 : <div style={{ fontSize:11, color:C.dim, marginBottom:12, lineHeight:1.6 }}>
                     Based on last race result · Worst picks first<br/>
@@ -1645,8 +1659,8 @@
       const deadline    = keyDate(next);
       const days        = daysUntil(deadline);
       const hours       = hoursUntil(deadline);
-      const locked      = next.status === "locked";
-      const freeForAll  = new Date() >= freeForAllTime(next) && next.status !== "locked";
+      const locked      = isRaceLocked(next, data.players);
+      const freeForAll  = new Date() >= freeForAllTime(next) && !locked;
       const picks       = next.picks || {};
       const order       = pickOrder(data.players, data.races);
       const taken       = Object.values(picks);
@@ -1727,7 +1741,7 @@
               {next.hasSprint && <span className="hero-chip">Sprint weekend</span>}
               <span className="hero-chip">
                 {locked ? "🔒 Picks locked"
-                  : freeForAll ? "⚡ Free-for-all — locks at qualifying"
+                  : freeForAll ? "⚡ Free-for-all — locks 12:01 AM race day"
                   : days <= 0 ? "Locks today"
                   : next.hasSprint ? `Open · locks ${days}d before sprint`
                   : `Open · ${days}d to deadline`}
@@ -1935,8 +1949,8 @@
       const completed = data.races.filter(r => r.status === "completed");
 
       function StatusBadge({ race }) {
+        if (race.status !== "completed" && isRaceLocked(race, data.players)) return <Badge color={C.red}>🔒 Locked</Badge>;
         if (race.status === "picks_open") return <Badge color={C.green}>🟢 Picks Open</Badge>;
-        if (race.status === "locked")     return <Badge color={C.red}>🔒 Locked</Badge>;
         const d = daysUntil(race.hasSprint ? keyDate(race) : race.date);
         if (d <= 14) return <Badge color={race.hasSprint ? C.orange : C.orange}>{d}d {race.hasSprint ? "to sprint" : "away"}</Badge>;
         return <span style={{ fontSize:11, color:C.dim }}>{fmtShort(race.hasSprint ? keyDate(race) : race.date)}</span>;
@@ -2575,15 +2589,22 @@
                   <div style={{ fontSize:20, flexShrink:0 }}>{r.flag}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:600 }}>{r.name}</div>
-                    <div style={{ fontSize:11, color:C.dim }}>{r.date} · {Object.keys(r.picks||{}).length}/6 picked · <span style={{ color:r.status==="picks_open"?C.green:r.status==="locked"?C.red:C.muted }}>{r.status}</span></div>
+                    <div style={{ fontSize:11, color:C.dim }}>{r.date} · {Object.keys(r.picks||{}).length}/6 picked · {(() => { const lk = isRaceLocked(r, data.players); return <span style={{ color:lk?C.red:r.status==="picks_open"?C.green:C.muted }}>{lk && r.status!=="locked" ? "locked (all picks in)" : r.status}</span>; })()}</div>
                   </div>
                   <div style={{ display:"flex", gap:5, flexShrink:0 }}>
                     {/* "Open" must be available from locked as well as upcoming.
                         Previously a locked race showed no buttons at all, leaving
                         no way to unlock it once you'd locked it. */}
-                    {r.status!=="picks_open" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"picks_open"}:x)})} style={{ fontSize:9, padding:"5px 9px", color:C.green }}>{r.status==="locked" ? "Unlock" : "Open"}</Btn>}
-                    {r.status!=="locked"     && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"locked"}:x)})}     style={{ fontSize:9, padding:"5px 9px" }}>Lock</Btn>}
-                    {r.status==="picks_open" && <Btn variant="ghost" onClick={() => update({...data, races:data.races.map(x => x.id===r.id?{...x,status:"upcoming"}:x)})}  style={{ fontSize:9, padding:"5px 9px", color:C.muted }}>Close</Btn>}
+                    {(() => {
+                      const lk  = isRaceLocked(r, data.players);
+                      const set = patch => update({...data, races:data.races.map(x => x.id===r.id?{...x,...patch}:x)});
+                      return <>
+                        {lk && <Btn variant="ghost" onClick={() => set({ status:"picks_open", manualUnlock: allPicksIn(r, data.players) })} style={{ fontSize:9, padding:"5px 9px", color:C.green }}>Unlock</Btn>}
+                        {!lk && r.status!=="picks_open" && <Btn variant="ghost" onClick={() => set({ status:"picks_open" })} style={{ fontSize:9, padding:"5px 9px", color:C.green }}>Open</Btn>}
+                        {!lk && <Btn variant="ghost" onClick={() => set({ status:"locked", manualUnlock:false })} style={{ fontSize:9, padding:"5px 9px" }}>Lock</Btn>}
+                        {!lk && r.status==="picks_open" && <Btn variant="ghost" onClick={() => set({ status:"upcoming", manualUnlock:false })} style={{ fontSize:9, padding:"5px 9px", color:C.muted }}>Close</Btn>}
+                      </>;
+                    })()}
                   </div>
                 </div>
               ))}
@@ -2600,6 +2621,9 @@
               {upcoming.filter(r => Object.keys(r.picks||{}).length > 0 || Object.keys(r.picks2||{}).length > 0).map(race => (
                 <div key={race.id} style={{ marginBottom:20 }}>
                   <div style={{ fontSize:12, fontWeight:600, color:C.teal, letterSpacing:".1em", textTransform:"uppercase", marginBottom:10 }}>{race.flag} {race.name}</div>
+                  {isRaceLocked(race, data.players) && (
+                    <div style={{ fontSize:11, color:C.red, fontWeight:600, marginBottom:8 }}>🔒 Locked — all picks in. Use Unlock under Races to make a correction.</div>
+                  )}
                   {data.players.map(p => {
                     const currentPick  = race.picks?.[p.id] || "";
                     const currentPick2 = race.picks2?.[p.id] || "";
@@ -2615,12 +2639,13 @@
                         <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:6 }}>
                           <div style={{ fontSize:10, color:C.dim, width:60, flexShrink:0 }}>1st driver</div>
                           <Sel
+                            disabled={isRaceLocked(race, data.players)}
                             value={currentPick}
                             onChange={e => {
                               const newPick = e.target.value;
                               const newPicks = { ...race.picks };
                               if (newPick === "") delete newPicks[p.id]; else newPicks[p.id] = newPick;
-                              const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks } : r);
+                              const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks, ...(newPick === "" ? { manualUnlock:false } : {}) } : r);
                               update({ ...data, races });
                               showToast(newPick ? `${p.name} → ${newPick} ✅` : `${p.name}'s 1st pick cleared ✅`);
                             }}
@@ -2635,12 +2660,13 @@
                         <div style={{ display:"flex", alignItems:"center", gap:9 }}>
                           <div style={{ fontSize:10, color:C.gold, width:60, flexShrink:0 }}>2nd driver</div>
                           <Sel
+                            disabled={isRaceLocked(race, data.players)}
                             value={currentPick2}
                             onChange={e => {
                               const newPick = e.target.value;
                               const newPicks2 = { ...race.picks2 };
                               if (newPick === "") delete newPicks2[p.id]; else newPicks2[p.id] = newPick;
-                              const races = data.races.map(r => r.id === race.id ? { ...r, picks2: newPicks2 } : r);
+                              const races = data.races.map(r => r.id === race.id ? { ...r, picks2: newPicks2, ...(newPick === "" ? { manualUnlock:false } : {}) } : r);
                               update({ ...data, races });
                               showToast(newPick ? `${p.name} 2nd → ${newPick} ✅` : `${p.name}'s 2nd pick cleared ✅`);
                             }}
