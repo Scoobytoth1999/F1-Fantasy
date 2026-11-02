@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "source": "api.jolpi.ca (Jolpica-F1)",
-  "updatedAt": "2026-11-02T05:56:41.035Z",
+  "updatedAt": "2026-11-02T23:28:43.487Z",
   "races": {
     "1": {
       "round": 1,
@@ -3887,78 +3887,78 @@
         {
           "pos": 7,
           "classified": true,
-          "name": "Oscar Piastri",
-          "code": "PIA",
-          "status": "Finished"
-        },
-        {
-          "pos": 8,
-          "classified": true,
-          "name": "Franco Colapinto",
-          "code": "COL",
-          "status": "Finished"
-        },
-        {
-          "pos": 9,
-          "classified": true,
           "name": "Liam Lawson",
           "code": "LAW",
           "status": "Finished"
         },
         {
-          "pos": 10,
-          "classified": true,
-          "name": "Pierre Gasly",
-          "code": "GAS",
-          "status": "Finished"
-        },
-        {
-          "pos": 11,
+          "pos": 8,
           "classified": true,
           "name": "Gabriel Bortoleto",
           "code": "BOR",
           "status": "Finished"
         },
         {
-          "pos": 12,
+          "pos": 9,
           "classified": true,
           "name": "Isack Hadjar",
           "code": "HAD",
           "status": "Finished"
         },
         {
-          "pos": 13,
+          "pos": 10,
           "classified": true,
           "name": "Ryo Hirakawa",
           "code": "HIR",
           "status": "Finished"
         },
         {
-          "pos": 14,
+          "pos": 11,
           "classified": true,
           "name": "Alexander Albon",
           "code": "ALB",
           "status": "Finished"
         },
         {
-          "pos": 15,
+          "pos": 12,
           "classified": true,
           "name": "Carlos Sainz",
           "code": "SAI",
           "status": "Finished"
         },
         {
-          "pos": 16,
+          "pos": 13,
+          "classified": true,
+          "name": "Oscar Piastri",
+          "code": "PIA",
+          "status": "Finished"
+        },
+        {
+          "pos": 14,
           "classified": true,
           "name": "Nico Hülkenberg",
           "code": "HUL",
           "status": "Finished"
         },
         {
-          "pos": 17,
+          "pos": 15,
+          "classified": true,
+          "name": "Franco Colapinto",
+          "code": "COL",
+          "status": "Finished"
+        },
+        {
+          "pos": 16,
           "classified": true,
           "name": "Sergio Pérez",
           "code": "PER",
+          "status": "Finished"
+        },
+        {
+          "pos": 17,
+          "classified": true,
+          "name": "Pierre Gasly",
+          "code": "GAS",
           "status": "Finished"
         },
         {
