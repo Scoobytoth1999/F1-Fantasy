@@ -1053,6 +1053,31 @@
     }
     function dataIsOk() { return DATA_OK; }
 
+    // Patch ONE race against the freshest copy of the league doc, inside a
+    // transaction. Used for background bookkeeping (email-sent marks) so it can
+    // never write back a stale copy of the league over someone's just-made pick.
+    async function patchRace(raceId, patchFn) {
+      if (!DATA_OK || !db) return false;
+      const ref = db.collection("f1fantasy").doc("data");
+      try {
+        await db.runTransaction(async tx => {
+          const snap = await tx.get(ref);
+          if (!snap.exists) return;
+          const d = snap.data();
+          if (!Array.isArray(d.races) || !Array.isArray(d.players)) return;
+          tx.set(ref, { ...d, races: d.races.map(r => r.id === raceId ? patchFn(r) : r) });
+        });
+        return true;
+      } catch (e) {
+        console.error("patchRace failed:", e);
+        return false;
+      }
+    }
+
+    // EmailJS rejects bursts (~1 request/second), so batches are paced.
+    const EMAIL_GAP_MS = 1200;
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+
     function subscribeData(callback) {
       if (!db) return () => {};
       return db.collection("f1fantasy").doc("data").onSnapshot(doc => {
@@ -2156,7 +2181,7 @@
           nextDriverResults[raceId] = map;
         }
 
-        update({
+        const newData = {
           ...data,
           driverResults: nextDriverResults,
           races: data.races.map(r => r.id===raceId ? {
@@ -2168,11 +2193,32 @@
             _sprintSaved: false,
             ...(isAlreadyCompleted ? { _pointsEdited: true } : {})
           } : r)
-        });
+        };
+        const saved = update(newData);
         showToast(placed > 0
           ? `Race finalized · ${placed} finishers charted ✅`
           : "Race finalized & points saved ✅");
         setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(22).fill(""));
+        // Wait for the finalize to land before the email bookkeeping reads the doc.
+        if (!isAlreadyCompleted) saved.then(() => emailFirstPicker(newData));
+      }
+
+      // Finalizing a race sets the pick order for the next one — tell whoever is
+      // first that it's their turn. Nothing else triggers that email (the "your
+      // turn" email only fires when the person ahead of you picks).
+      async function emailFirstPicker(newData) {
+        const nextRace = newData.races.find(r => r.status !== "completed");
+        if (!nextRace || nextRace.noLeague || nextRace._firstPickEmailSent) return;
+        const order = pickOrder(newData.players, newData.races);
+        const first = order.find(p => !(nextRace.picks || {})[p.id]);
+        if (!first) return;
+        const sent = await sendPickEmail({ toPlayer: first, nextRace, takenDrivers: Object.values(nextRace.picks || {}), allPlayers: newData.players, allRaces: newData.races });
+        if (sent) {
+          await patchRace(nextRace.id, r => ({ ...r, _firstPickEmailSent: true }));
+          showToast(`📧 ${first.name} notified — first pick for ${nextRace.name}`);
+        } else if (!first.email) {
+          showToast(`⚠️ ${first.name} picks first but has no email on file`);
+        }
       }
 
       // Clear a race's results/points but KEEP everyone's picks
@@ -2961,6 +3007,11 @@
                   <div key={p.id} style={{ marginBottom:10 }}>
                     <Lbl>{p.name}</Lbl>
                     <Inp type="email" value={emails[p.id]||""} onChange={e => setEmails({...emails,[p.id]:e.target.value})} placeholder={`${p.name.split(" ")[0].toLowerCase()}@email.com`} />
+                    {!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((emails[p.id]||"").trim()) && (
+                      <div style={{ fontSize:11, color:C.red, fontWeight:600, marginTop:4 }}>
+                        ⚠️ {(emails[p.id]||"").trim() ? "Doesn't look like a valid address" : "No email — this player gets no pick emails"}
+                      </div>
+                    )}
                   </div>
                 ))}
                 <Btn onClick={saveEmails}>Save Emails</Btn>
@@ -3476,8 +3527,7 @@
       const [official,  setOfficial]  = useState(null);
       const [schedule,  setSchedule]  = useState(null);
       const toastTimer = useRef(null);
-      const bottomEmailFiredRef   = useRef(null);
-      const everyoneEmailFiredRef = useRef(null);
+      const secondEmailBusyRef    = useRef(false);
 
       useEffect(() => {
         emailjs.init(EMAILJS_PUBLIC_KEY);
@@ -3551,53 +3601,65 @@
         if (!next) return;
         if (new Date(next.date + "T23:59:59") < new Date()) return;
         if (EMAILJS_PUBLIC_KEY === "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE") return;
+        if (secondEmailBusyRef.current) return;   // a batch is already running in this tab
 
         const { bottomIds, staggered } = secondPickGroups(data.players, data.races);
-        const windowStart     = secondPickStart(next);
-        const everyoneTime    = secondPickEveryoneTime(next);
+        const now             = new Date();
+        const windowOpen      = now >= secondPickStart(next);
         const bottomAllPicked = staggered && bottomIds.size > 0 && [...bottomIds].every(id => (next.picks2 || {})[id]);
-        const everyoneIn      = !staggered || new Date() >= everyoneTime || bottomAllPicked;
+        const everyoneIn      = !staggered || now >= secondPickEveryoneTime(next) || bottomAllPicked;
+        if (!windowOpen) return;
 
-        const bottomDue   = new Date() >= windowStart && !next._bottomPickEmailSent
-                             && bottomEmailFiredRef.current !== next.id;
-        const everyoneDue = staggered && everyoneIn && !next._everyonePickEmailSent
-                             && everyoneEmailFiredRef.current !== next.id;
-        if (!bottomDue && !everyoneDue) return;
+        // Per-person marks: someone is only marked once THEIR email actually went
+        // through. A batch that gets cut off (tab closed, phone locked, EmailJS
+        // rate limit) is finished by the next app open on any device.
+        // Races emailed under the old all-at-once flags are treated as done.
+        const emailed = next._secondEmailed || {};
+        const legacyBottomDone   = !!next._bottomPickEmailSent && !next._secondEmailed;
+        const legacyEveryoneDone = !!next._everyonePickEmailSent && !next._secondEmailed;
+        const due = data.players.filter(p => {
+          if (!p.email || emailed[p.id]) return false;
+          if ((next.picks2 || {})[p.id]) return false;          // already picked — no need
+          const inBottom = staggered && bottomIds.has(p.id);
+          if (inBottom || !staggered) return !legacyBottomDone;
+          return everyoneIn && !legacyEveryoneDone;
+        });
+        if (!due.length) return;
 
+        secondEmailBusyRef.current = true;
         (async () => {
-          if (bottomDue) {
-            bottomEmailFiredRef.current = next.id;
-            const recipients = staggered ? data.players.filter(p => bottomIds.has(p.id)) : data.players;
-            const flagPatch = staggered ? { _bottomPickEmailSent: true } : { _bottomPickEmailSent: true, _everyonePickEmailSent: true };
-            const races = data.races.map(r => r.id === next.id ? { ...r, ...flagPatch } : r);
-            await saveData({ ...data, races });
-            await sendSecondPickEmails(recipients, next);
-          }
-          if (everyoneDue) {
-            everyoneEmailFiredRef.current = next.id;
-            const recipients = data.players.filter(p => !bottomIds.has(p.id));
-            const races = data.races.map(r => r.id === next.id ? { ...r, _everyonePickEmailSent: true } : r);
-            await saveData({ ...data, races });
-            await sendSecondPickEmails(recipients, next);
+          try {
+            const mark = id => patchRace(next.id, r => ({ ...r, _secondEmailed: { ...(r._secondEmailed || {}), [id]: true } }));
+            let failed = [];
+            for (let i = 0; i < due.length; i++) {
+              if (i > 0) await sleep(EMAIL_GAP_MS);
+              if (await sendSecondPickEmail(due[i], next)) await mark(due[i].id); else failed.push(due[i]);
+            }
+            // One retry pass after a pause (EmailJS rate limits clear quickly).
+            // Anything still failing is retried on the next app open anywhere.
+            for (const p of failed) {
+              await sleep(4000);
+              if (await sendSecondPickEmail(p, next)) await mark(p.id);
+            }
+          } finally {
+            secondEmailBusyRef.current = false;
           }
         })();
       }, [data]);
 
-      async function sendSecondPickEmails(recipients, next) {
-        for (const p of recipients) {
-          if (!p.email) continue;
-          try {
-            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-              to_email: p.email,
-              to_name: p.name,
-              race_name: next.name,
-              race_date: fmtShort(next.date),
-              pick_pos: "2nd driver window open",
-              taken: Object.values(next.picks2||{}).join(", ") || "None yet",
-              app_url: window.location.href,
-            }, EMAILJS_PUBLIC_KEY);
-          } catch(e) { console.error("2nd-pick email error:", e); }
-        }
+      async function sendSecondPickEmail(p, next) {
+        try {
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+            to_email: p.email,
+            to_name: p.name,
+            race_name: next.name,
+            race_date: fmtShort(next.date),
+            pick_pos: "2nd driver window open",
+            taken: Object.values(next.picks2||{}).join(", ") || "None yet",
+            app_url: window.location.href,
+          }, EMAILJS_PUBLIC_KEY);
+          return true;
+        } catch(e) { console.error("2nd-pick email error:", e); return false; }
       }
 
       function showToast(msg) {
