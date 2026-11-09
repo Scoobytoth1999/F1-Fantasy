@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "source": "api.jolpi.ca (Jolpica-F1)",
-  "updatedAt": "2026-11-08T21:59:33.920Z",
+  "updatedAt": "2026-11-09T01:42:54.238Z",
   "races": {
     "1": {
       "round": 1,
@@ -4048,15 +4048,15 @@
         {
           "pos": 7,
           "classified": true,
-          "name": "Charles Leclerc",
-          "code": "LEC",
+          "name": "Liam Lawson",
+          "code": "LAW",
           "status": "Finished"
         },
         {
           "pos": 8,
           "classified": true,
-          "name": "Liam Lawson",
-          "code": "LAW",
+          "name": "Charles Leclerc",
+          "code": "LEC",
           "status": "Finished"
         },
         {
