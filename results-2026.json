@@ -1,7 +1,7 @@
 {
   "season": 2026,
   "source": "api.jolpi.ca (Jolpica-F1)",
-  "updatedAt": "2026-11-09T01:42:54.238Z",
+  "updatedAt": "2026-11-11T21:22:19.889Z",
   "races": {
     "1": {
       "round": 1,
@@ -4140,7 +4140,7 @@
           "pos": 20,
           "classified": true,
           "name": "Rafael Camara",
-          "code": null,
+          "code": "CAM",
           "status": "Lapped"
         },
         {
