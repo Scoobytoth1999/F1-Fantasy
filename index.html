@@ -3538,7 +3538,7 @@
       const [official,  setOfficial]  = useState(null);
       const [schedule,  setSchedule]  = useState(null);
       const toastTimer = useRef(null);
-      const secondEmailBusyRef    = useRef(false);
+      const noticeBusyRef         = useRef(false);
 
       useEffect(() => {
         emailjs.init(EMAILJS_PUBLIC_KEY);
@@ -3605,71 +3605,97 @@
       // secondPickGroups returns an empty bottomIds — so everyoneIn is true from
       // the moment the window opens and this collapses to one email, one flag,
       // sent to everyone, same as before the split.
+      // League notice emails — one paced queue for two kinds of notice:
+      //   • "ffa"    — free-for-all is open: everyone without a 1st pick yet
+      //   • "second" — 2nd-driver window open for them (bottom 3 first, then all)
+      // Each person is marked per race and per kind only AFTER their email goes
+      // through, so a cut-off batch is finished by the next app open anywhere.
       useEffect(() => {
         if (!data) return;
         if (!dataIsOk()) return;
         const next = data.races.find(r => r.status !== "completed");
-        if (!next) return;
+        if (!next || next.noLeague) return;
         if (leagueTime(next.date, 23, 59) < new Date()) return;
         if (EMAILJS_PUBLIC_KEY === "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE") return;
-        if (secondEmailBusyRef.current) return;   // a batch is already running in this tab
+        if (noticeBusyRef.current) return;   // a batch is already running in this tab
 
+        const now    = new Date();
+        const locked = isRaceLocked(next, data.players) || now >= raceLockTime(next);
+        if (locked) return;
+        const picks  = next.picks  || {};
+        const picks2 = next.picks2 || {};
+        const jobs   = [];
+
+        // Free-for-all open → everyone still missing a 1st pick.
+        if (now >= freeForAllTime(next)) {
+          const sent = next._ffaEmailed || {};
+          data.players.forEach(p => { if (p.email && !picks[p.id] && !sent[p.id]) jobs.push({ kind:"ffa", p }); });
+        }
+
+        // 2nd-driver window.
         const { bottomIds, staggered } = secondPickGroups(data.players, data.races);
-        const now             = new Date();
         const windowOpen      = now >= secondPickStart(next);
-        const bottomAllPicked = staggered && bottomIds.size > 0 && [...bottomIds].every(id => (next.picks2 || {})[id]);
+        const bottomAllPicked = staggered && bottomIds.size > 0 && [...bottomIds].every(id => picks2[id]);
         const everyoneIn      = !staggered || now >= secondPickEveryoneTime(next) || bottomAllPicked;
-        if (!windowOpen) return;
+        if (windowOpen) {
+          const sent = next._secondEmailed || {};
+          const legacyBottomDone   = !!next._bottomPickEmailSent && !next._secondEmailed;
+          const legacyEveryoneDone = !!next._everyonePickEmailSent && !next._secondEmailed;
+          data.players.forEach(p => {
+            if (!p.email || sent[p.id] || picks2[p.id]) return;
+            const inBottom = staggered && bottomIds.has(p.id);
+            const due = (inBottom || !staggered) ? !legacyBottomDone : (everyoneIn && !legacyEveryoneDone);
+            if (due) jobs.push({ kind:"second", p });
+          });
+        }
+        if (!jobs.length) return;
 
-        // Per-person marks: someone is only marked once THEIR email actually went
-        // through. A batch that gets cut off (tab closed, phone locked, EmailJS
-        // rate limit) is finished by the next app open on any device.
-        // Races emailed under the old all-at-once flags are treated as done.
-        const emailed = next._secondEmailed || {};
-        const legacyBottomDone   = !!next._bottomPickEmailSent && !next._secondEmailed;
-        const legacyEveryoneDone = !!next._everyonePickEmailSent && !next._secondEmailed;
-        const due = data.players.filter(p => {
-          if (!p.email || emailed[p.id]) return false;
-          if ((next.picks2 || {})[p.id]) return false;          // already picked — no need
-          const inBottom = staggered && bottomIds.has(p.id);
-          if (inBottom || !staggered) return !legacyBottomDone;
-          return everyoneIn && !legacyEveryoneDone;
-        });
-        if (!due.length) return;
-
-        secondEmailBusyRef.current = true;
+        noticeBusyRef.current = true;
         (async () => {
           try {
-            const mark = id => patchRace(next.id, r => ({ ...r, _secondEmailed: { ...(r._secondEmailed || {}), [id]: true } }));
-            let failed = [];
-            for (let i = 0; i < due.length; i++) {
+            const field = { ffa:"_ffaEmailed", second:"_secondEmailed" };
+            const mark  = j => patchRace(next.id, r => ({ ...r, [field[j.kind]]: { ...(r[field[j.kind]] || {}), [j.p.id]: true } }));
+            const failed = [];
+            for (let i = 0; i < jobs.length; i++) {
               if (i > 0) await sleep(EMAIL_GAP_MS);
-              if (await sendSecondPickEmail(due[i], next)) await mark(due[i].id); else failed.push(due[i]);
+              if (await sendNotice(jobs[i], next)) await mark(jobs[i]); else failed.push(jobs[i]);
             }
             // One retry pass after a pause (EmailJS rate limits clear quickly).
-            // Anything still failing is retried on the next app open anywhere.
-            for (const p of failed) {
+            for (const j of failed) {
               await sleep(4000);
-              if (await sendSecondPickEmail(p, next)) await mark(p.id);
+              if (await sendNotice(j, next)) await mark(j);
             }
           } finally {
-            secondEmailBusyRef.current = false;
+            noticeBusyRef.current = false;
           }
         })();
       }, [data]);
 
-      async function sendSecondPickEmail(p, next) {
+      // Uses the generic notice template: {{subject}}, {{message}}, {{taken}}, {{app_url}}.
+      async function sendNotice({ kind, p }, next) {
+        const lock = raceLockTime(next).toLocaleString("en-US", { timeZone:LEAGUE_TZ, weekday:"long", hour:"numeric", minute:"2-digit" });
+        const first  = Object.values(next.picks  || {});
+        const second = Object.values(next.picks2 || {});
+        const params = kind === "ffa" ? {
+          subject: `Free-for-all is open — ${next.name}`,
+          message: `The free-for-all is open for the ${next.name} (${fmtShort(next.date)}). You haven't made your 1st pick yet — anyone can pick now, no need to wait for your turn. Picks lock ${lock} (Detroit time).`,
+          taken:   [...first, ...second].join(", ") || "None yet",
+        } : {
+          subject: `2nd driver pick is open — ${next.name}`,
+          message: `The 2nd-driver pick is open for you for the ${next.name} (${fmtShort(next.date)}). Picks lock ${lock} (Detroit time).`,
+          taken:   [...first, ...second].join(", ") || "None yet",
+        };
         try {
           await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE2_ID, {
             to_email: p.email,
-            to_name: p.name,
+            to_name:  p.name,
             race_name: next.name,
             race_date: fmtShort(next.date),
-            taken: Object.values(next.picks2||{}).join(", ") || "None yet",
-            app_url: window.location.href,
+            app_url:  window.location.href,
+            ...params,
           }, EMAILJS_PUBLIC_KEY);
           return true;
-        } catch(e) { console.error("2nd-pick email error:", e); return false; }
+        } catch(e) { console.error(`${kind} notice email error:`, e); return false; }
       }
 
       function showToast(msg) {
