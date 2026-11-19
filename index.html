@@ -1848,8 +1848,6 @@
                   ))}
                 </Sel>
               </div>
-              <AddDriverInline data={data} update={update} showToast={showToast} whoId={who}
-                onAdded={n => setDriver(n)} />
               <Btn onClick={() => { if (!who) { setErr("Please select your name."); return; } if (!driver) { setErr("Please select a driver."); return; } setErr(""); setConfirming(true); }} disabled={sending}>Review My Pick →</Btn>
             </Card>
           )}
@@ -1936,8 +1934,6 @@
                       ))}
                     </Sel>
                   </div>
-                  <AddDriverInline data={data} update={update} showToast={showToast} whoId={who2}
-                    onAdded={n => setDriver2(n)} accent={C.gold} />
                   <Btn onClick={() => { if (!who2) { setErr2("Please select your name."); return; } if (!driver2) { setErr2("Please select a driver."); return; } setErr2(""); setConfirming2(true); }} disabled={sending2} style={{ background:C.gold, color:"#fff" }}>Review My 2nd Pick →</Btn>
                 </>
               )}
@@ -2792,6 +2788,24 @@
               showToast(`${name} removed`);
             }
 
+            // Clear every stand-in at once. Any already picked for a race are kept —
+            // removing them would orphan that pick.
+            function removeAllStandIns() {
+              const keep = customs.filter(c => usage(c.name).picked.length);
+              const drop = customs.filter(c => !usage(c.name).picked.length);
+              if (!drop.length) { window.alert(keep.length ? `All ${keep.length} stand-in(s) have been picked for a race, so none can be removed.` : "There are no stand-ins to remove."); return; }
+              let msg = `Permanently remove these ${drop.length} stand-in(s)?\n\n${drop.map(c => `• ${c.name} (${c.team})`).join("\n")}`;
+              if (keep.length) msg += `\n\nKept because they've been picked: ${keep.map(c => c.name).join(", ")}`;
+              msg += "\n\nThis can't be undone except by restoring a backup.";
+              if (!window.confirm(msg)) return;
+              const dropNames = new Set(drop.map(c => c.name));
+              update({ ...data,
+                customDrivers:   keep,
+                inactiveDrivers: inactive.filter(n => !dropNames.has(n)),
+              });
+              showToast(`${drop.length} stand-in${drop.length === 1 ? "" : "s"} removed`);
+            }
+
             function toggleOut(name) {
               const isOut = inactive.includes(name);
               update({ ...data, inactiveDrivers: isOut
@@ -2806,8 +2820,8 @@
                   <ST color={C.gold}>🏎 Add a Stand-In Driver</ST>
                   <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:14 }}>
                     Adds a driver to the grid permanently — pick lists, results entry, name
-                    matching and the research chart all pick them up straight away. Players can
-                    also do this themselves from the Pick Driver tab.
+                    matching and the research chart all pick them up straight away. Admin only —
+                    players can no longer add stand-ins from the Pick Driver tab.
                   </div>
                   {gErr && <div style={{ color:C.danger, fontSize:12, marginBottom:10, fontWeight:600 }}>{gErr}</div>}
                   <div style={{ marginBottom:10 }}>
@@ -2824,6 +2838,18 @@
                     </Sel>
                   </div>
                   <Btn onClick={addDriver}>Add to Grid</Btn>
+                </Card>
+
+                <Card>
+                  <ST color={C.red}>Stand-Ins on the Grid — {customs.length}</ST>
+                  {customs.length === 0
+                    ? <div style={{ fontSize:12, color:C.dim }}>No stand-ins. The grid is the official 2026 entry list.</div>
+                    : <>
+                        <div style={{ fontSize:12, color:C.dim, lineHeight:1.7, marginBottom:10 }}>
+                          {customs.map(c => `${c.name} (${c.team}${c.addedBy && c.addedBy !== "admin" ? ` · added by ${(data.players.find(p => p.id === c.addedBy)||{}).name || c.addedBy}` : ""})`).join(" · ")}
+                        </div>
+                        <Btn onClick={removeAllStandIns} style={{ background:C.red, color:"#fff" }}>Remove All Stand-Ins</Btn>
+                      </>}
                 </Card>
 
                 <Card>
