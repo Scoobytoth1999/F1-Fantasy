@@ -1153,16 +1153,31 @@
 
     // Race day (the day picks lock): GP date, or the day before for sprint weekends
     // (sprint race runs Saturday, one driver covers both sessions, so lock before it).
-    function raceLockDay(race) {
-      const d = new Date(race.date + "T00:00:00");
-      if (race.hasSprint) d.setDate(d.getDate() - 1);
-      return d;
+    // ── League clock ──────────────────────────────────────────────────────────
+    // Every pick deadline is Detroit wall-clock time, whatever time zone the
+    // viewer's device is set to. Previously these used the device's local zone,
+    // so a phone/laptop set to UTC/UK treated "4 PM" as 11 AM Detroit and sent
+    // 2nd-pick emails (and opened picks) hours early.
+    const LEAGUE_TZ = "America/Detroit";
+    function tzOffsetMs(ms) {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+        timeZone: LEAGUE_TZ, hourCycle: "h23",
+        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+      }).formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+      const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+      return asUTC - Math.floor(ms / 1000) * 1000;
+    }
+    // Detroit wall-clock time on (dateStr + dayOffset days) → the real instant.
+    function leagueTime(dateStr, hour, minute, dayOffset = 0) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const wall = Date.UTC(y, m - 1, d + dayOffset, hour, minute, 0);
+      let t = wall - tzOffsetMs(wall);
+      t = wall - tzOffsetMs(t);            // second pass settles DST edges
+      return new Date(t);
     }
     // All picks (1st and 2nd) lock at 12:01 AM on race day.
     function raceLockTime(race) {
-      const d = raceLockDay(race);
-      d.setHours(0, 1, 0, 0);
-      return d;
+      return leagueTime(race.date, 0, 1, race.hasSprint ? -1 : 0);
     }
     // Second-pick window opens whichever comes first: the scheduled free-for-all time,
     // or the moment all 6 first picks are locked in (race._allPickedAt).
@@ -1176,9 +1191,7 @@
     }
     // 6 hours after the second-pick window opens, everyone (not just bottom 3) can pick.
     function secondPickEveryoneTime(race) {
-      const d = new Date(secondPickStart(race));
-      d.setHours(d.getHours() + 6);
-      return d;
+      return new Date(secondPickStart(race).getTime() + 6 * 3600 * 1000);
     }
     // Bottom 3 in current season standings get first access to the 2nd pick.
     // If there's a tie right at the 3rd/4th boundary, both tied players move into
@@ -1266,10 +1279,7 @@
     // Normal weekend: qualifying Sat -> opens Friday 10am (GP date - 2)
     // Sprint weekend: sprint quali Fri -> opens Thursday 10am (GP date - 3)
     function freeForAllTime(race) {
-      const d = new Date(race.date + "T00:00:00");
-      d.setDate(d.getDate() - (race.hasSprint ? 3 : 2));
-      d.setHours(10, 0, 0, 0);
-      return d;
+      return leagueTime(race.date, 10, 0, race.hasSprint ? -3 : -2);
     }
     // A bare "YYYY-MM-DD" is parsed by JS as UTC midnight — the previous evening in
     // US time zones, so Sunday races displayed as Saturday. Read it as a local date.
@@ -1884,7 +1894,7 @@
               <ST color={C.gold}>🏎 2nd Driver Pick</ST>
               {!everyoneIn ? (
                 <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--gold) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--gold) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.gold }}>
-                  ⏳ Bottom 3 in standings get first access. Everyone else joins at {everyoneTime.toLocaleString("en-US",{ weekday:"short", hour:"numeric", minute:"2-digit" })} — or the moment all of them have picked, whichever comes first.
+                  ⏳ Bottom 3 in standings get first access. Everyone else joins at {everyoneTime.toLocaleString("en-US",{ timeZone:LEAGUE_TZ, weekday:"short", hour:"numeric", minute:"2-digit" })} — or the moment all of them have picked, whichever comes first.
                 </div>
               ) : (
                 <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--green) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--green) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.green }}>
@@ -1958,7 +1968,7 @@
             <Card style={{ background:"var(--card2)" }}>
               <ST color={C.dim}>🏎 2nd Driver Pick</ST>
               <div style={{ fontSize:12, color:C.dim, lineHeight:1.7 }}>
-                Opens {windowStart.toLocaleString("en-US",{ weekday:"long", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })} — or sooner, the moment all six 1st picks are locked in.
+                Opens {windowStart.toLocaleString("en-US",{ timeZone:LEAGUE_TZ, weekday:"long", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })} — or sooner, the moment all six 1st picks are locked in.
                 {staggered
                   ? " Bottom 3 in standings get up to 6 hours' early access — sooner if they all pick before then."
                   : " Open to everyone at once — the bottom-3 head start begins at race 3 of the season."}
@@ -3599,7 +3609,7 @@
         if (!dataIsOk()) return;
         const next = data.races.find(r => r.status !== "completed");
         if (!next) return;
-        if (new Date(next.date + "T23:59:59") < new Date()) return;
+        if (leagueTime(next.date, 23, 59) < new Date()) return;
         if (EMAILJS_PUBLIC_KEY === "PASTE_YOUR_EMAILJS_PUBLIC_KEY_HERE") return;
         if (secondEmailBusyRef.current) return;   // a batch is already running in this tab
 
