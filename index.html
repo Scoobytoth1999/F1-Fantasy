@@ -36,6 +36,7 @@
   <script>
     const EMAILJS_SERVICE_ID  = "service_ghi7qds";
     const EMAILJS_TEMPLATE_ID = "template_fyi974o";
+    const EMAILJS_TEMPLATE2_ID = "template_o926u5g";   // "2nd driver pick is open" notice
   </script>
 
   <!-- Dependencies -->
@@ -3659,12 +3660,11 @@
 
       async function sendSecondPickEmail(p, next) {
         try {
-          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE2_ID, {
             to_email: p.email,
             to_name: p.name,
             race_name: next.name,
             race_date: fmtShort(next.date),
-            pick_pos: "2nd driver window open",
             taken: Object.values(next.picks2||{}).join(", ") || "None yet",
             app_url: window.location.href,
           }, EMAILJS_PUBLIC_KEY);
