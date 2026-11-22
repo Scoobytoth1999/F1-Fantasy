@@ -1282,6 +1282,61 @@
     function freeForAllTime(race) {
       return leagueTime(race.date, 10, 0, race.hasSprint ? -3 : -2);
     }
+
+    // ── 36-hour turn clock ────────────────────────────────────────────────────
+    // Each player in pick order gets 36 hours. The next player opens up when the
+    // one before them picks OR their 36 hours run out — whichever comes first.
+    // Timing out doesn't skip anyone: the late player can still pick, the next
+    // person just opens up alongside them. The clock starts when the race becomes
+    // the next race (previous race finalized) — race._turnClockStart.
+    // Pick times live in race._pickedAt. The free-for-all is still the backstop.
+    const TURN_MS = 36 * 3600 * 1000;
+    function turnSchedule(race, order) {
+      if (!race._turnClockStart) return null;
+      const anchor   = new Date(race._turnClockStart);
+      const picks    = race.picks || {};
+      const pickedAt = race._pickedAt || {};
+      const out = [];
+      order.forEach((p, i) => {
+        let openAt, byTimeout = false;
+        if (i === 0) openAt = anchor;
+        else {
+          const prev    = out[i - 1];
+          const timeout = new Date(prev.openAt.getTime() + TURN_MS);
+          // A pick made without a recorded time counts as made when they opened.
+          const pickT   = picks[prev.p.id] ? (pickedAt[prev.p.id] ? new Date(pickedAt[prev.p.id]) : prev.openAt) : null;
+          if (pickT && pickT < timeout) openAt = pickT < prev.openAt ? prev.openAt : pickT;
+          else { openAt = timeout; byTimeout = true; }
+        }
+        out.push({ p, openAt, deadline: new Date(openAt.getTime() + TURN_MS), byTimeout });
+      });
+      return out;
+    }
+    // Is this player allowed to make their 1st pick right now?
+    function canPickNow(race, order, pid, now = new Date()) {
+      if (now >= freeForAllTime(race)) return true;
+      const sched = turnSchedule(race, order);
+      if (!sched) return (order.find(p => !(race.picks || {})[p.id]) || {}).id === pid;   // pre-clock races: classic one-at-a-time
+      const e = sched.find(x => x.p.id === pid);
+      return !!e && e.openAt <= now;
+    }
+    // Status for one player in the order list: { open, text }.
+    function turnStatus(race, order, i, now = new Date()) {
+      const p = order[i];
+      if ((race.picks || {})[p.id]) return { open:false, text:"" };
+      if (now >= freeForAllTime(race)) return { open:true, text:"← Pick now" };
+      const sched = turnSchedule(race, order);
+      if (!sched) {
+        const first = order.findIndex(x => !(race.picks || {})[x.id]) === i;
+        return first ? { open:true, text:"← Your turn" } : { open:false, text:"Waiting..." };
+      }
+      const e = sched[i];
+      if (e.openAt <= now) return { open:true, text: now < e.deadline ? `← Up · until ${fmtLeague(e.deadline)}` : "← Up · 36 hrs passed" };
+      const prev = sched[i - 1];
+      if (prev && prev.openAt <= now) return { open:false, text:`Opens by ${fmtLeague(prev.deadline)}` };
+      return { open:false, text:"Waiting..." };
+    }
+    const fmtLeague = d => d.toLocaleString("en-US", { timeZone: LEAGUE_TZ, weekday: "short", hour: "numeric", minute: "2-digit" });
     // A bare "YYYY-MM-DD" is parsed by JS as UTC midnight — the previous evening in
     // US time zones, so Sunday races displayed as Saturday. Read it as a local date.
     function parseDay(d) {
@@ -1457,12 +1512,14 @@
                 ? <div style={{ marginBottom:12, padding:"8px 11px", background:"color-mix(in srgb, var(--orange) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 28%, transparent)", borderRadius:8, fontSize:11, fontWeight:600, color:C.orange }}>⚡ Free-for-all open — anyone can pick now!</div>
                 : <div style={{ fontSize:11, color:C.dim, marginBottom:12, lineHeight:1.6 }}>
                     Based on last race result · Worst picks first<br/>
-                    Free-for-all picking opens Friday 10am (Thursday 10am on sprint weekends)
+                    Each player gets 36 hours — if they haven't picked, the next player opens up too.
+                    Free-for-all opens 10am two days before the race (three on sprint weekends).
                   </div>
               }
               {order.map((p,i) => {
                 const hp     = !!next.picks?.[p.id];
-                const isNext = !hp && order.findIndex(x => !next.picks?.[x.id]) === i;
+                const ts     = turnStatus(next, order, i);
+                const isNext = ts.open;
                 return (
                   <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
                     <div style={{ width:25, height:25, borderRadius:"50%", background:hp?"color-mix(in srgb, var(--green) 12%, transparent)":isNext?C.red:"var(--surface2)", border:`1px solid ${hp?"color-mix(in srgb, var(--green) 28%, transparent)":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.dim, flexShrink:0 }}>
@@ -1477,8 +1534,8 @@
                         </div>
                       )}
                     </div>
-                    {isNext && <span style={{ fontSize:12, color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>}
-                    {!hp && !isNext && <span style={{ fontSize:11, color:C.dim }}>Waiting...</span>}
+                    {isNext && <span style={{ fontSize:12, color:C.gold, fontWeight:600, animation:"pulse 2s infinite", textAlign:"right" }}>{ts.text}</span>}
+                    {!hp && !isNext && <span style={{ fontSize:11, color:C.dim, textAlign:"right" }}>{ts.text}</span>}
                     {hp && <Badge color={C.green}>✓ In</Badge>}
                   </div>
                 );
@@ -1699,6 +1756,7 @@
       const freeForAll  = new Date() >= freeForAllTime(next) && !locked;
       const picks       = next.picks || {};
       const order       = pickOrder(data.players, data.races);
+      const openNow     = order.filter(p => !(next.picks || {})[p.id] && canPickNow(next, order, p.id));
       const taken       = Object.values(picks);
       // A driver already taken as anyone's 2nd pick is off the table for 1st picks too.
       const takenAny    = [...taken, ...Object.values(next.picks2 || {})];
@@ -1730,24 +1788,26 @@
         if (!driver)    { setErr("Please select a driver."); return; }
         if (picks[who]) { setErr("You already locked in a pick!"); return; }
         if (takenAny.includes(driver)) { setErr(`${driver} is already taken — pick someone else.`); return; }
-        if (!freeForAll) {
-          const currentTurn = order.find(p => !picks[p.id]);
-          if (currentTurn && currentTurn.id !== who) { setErr(`It's not your turn yet — waiting on ${currentTurn.name} to pick first.`); return; }
+        if (!canPickNow(next, order, who)) {
+          const sched = turnSchedule(next, order);
+          const me    = sched && sched.find(x => x.p.id === who);
+          const prev  = sched && me && sched[sched.indexOf(me) - 1];
+          setErr(prev && prev.openAt <= new Date()
+            ? `Not your turn yet — you open up when ${prev.p.name} picks, or ${fmtLeague(prev.deadline)} at the latest.`
+            : `Not your turn yet — waiting on the players ahead of you.`);
+          return;
         }
         setSending(true);
         const newPicks = { ...picks, [who]: driver };
         const allDone  = data.players.every(p => newPicks[p.id]);
         const races    = data.races.map(r => r.id === next.id ? {
-          ...r, picks: newPicks,
+          ...r, picks: newPicks, _pickedAt: { ...(r._pickedAt || {}), [who]: new Date().toISOString() },
           ...(allDone && !r._allPickedAt ? { _allPickedAt: new Date().toISOString() } : {}),
         } : r);
         const newData  = { ...data, races };
         await update(newData);
-        const nextPicker = order.find(p => !newPicks[p.id]);
-        if (nextPicker) {
-          const sent = await sendPickEmail({ toPlayer: nextPicker, nextRace: next, takenDrivers: [...Object.values(newPicks), ...Object.values(next.picks2 || {})], allPlayers: data.players, allRaces: data.races });
-          if (sent) showToast(`📧 Reminder sent to ${nextPicker.name}!`);
-        }
+        // "Your turn" emails for whoever opens up next go out from the shared
+        // notice queue (App), triggered by this very save.
         setSending(false);
         setDone(true);
         setErr("");
@@ -1792,7 +1852,8 @@
             <ST color={C.teal}>Pick Status</ST>
             {order.map((p,i) => {
               const hp     = !!picks[p.id];
-              const isNext = !hp && order.findIndex(x => !picks[x.id]) === i;
+              const ts     = turnStatus(next, order, i);
+              const isNext = ts.open;
               return (
                 <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:i<order.length-1?`1px solid ${C.border}`:"none" }}>
                   <div style={{ width:27, height:27, borderRadius:"50%", flexShrink:0, background:hp?"color-mix(in srgb, var(--green) 12%, transparent)":isNext?C.red:"var(--surface2)", border:`1px solid ${hp?"color-mix(in srgb, var(--green) 40%, transparent)":isNext?C.red:C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, fontFamily:"Syne,sans-serif", color:hp?C.green:isNext?"#fff":C.muted }}>
@@ -1802,8 +1863,8 @@
                   <div style={{ fontSize:12 }}>
                     {hp
                       ? <span style={{ color:C.green, fontWeight:600 }}>{picks[p.id]}</span>
-                      : isNext ? <span style={{ color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>← Your turn</span>
-                      : <span style={{ color:C.muted }}>Waiting...</span>}
+                      : isNext ? <span style={{ color:C.gold, fontWeight:600, animation:"pulse 2s infinite" }}>{ts.text}</span>
+                      : <span style={{ color:C.muted }}>{ts.text}</span>}
                   </div>
                 </div>
               );
@@ -1816,15 +1877,12 @@
               <ST>Lock In Your Pick</ST>
               {err && <div style={{ color:C.red, fontSize:12, marginBottom:10 }}>{err}</div>}
               <div style={{ marginBottom:11 }}>
-                {!freeForAll && (() => {
-                  const turn = order.find(p => !picks[p.id]);
-                  return turn ? (
+                {!freeForAll && openNow.length > 0 && (
                     <div style={{ padding:"10px 12px", background:"var(--surface2)", borderRadius:9, marginBottom:8 }}>
-                      <div style={{ fontSize:10, color:C.dim, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>It's their turn to pick</div>
-                      <div style={{ fontSize:15, fontWeight:600, color:C.gold }}>{turn.name}</div>
+                      <div style={{ fontSize:10, color:C.dim, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>{openNow.length > 1 ? "Up to pick now" : "It's their turn to pick"}</div>
+                      <div style={{ fontSize:15, fontWeight:600, color:C.gold }}>{openNow.map(p => p.name).join(" · ")}</div>
                     </div>
-                  ) : null;
-                })()}
+                )}
                 {freeForAll && (
                   <div style={{ padding:"10px 12px", background:"color-mix(in srgb, var(--orange) 10%, transparent)", border:"1px solid color-mix(in srgb, var(--orange) 32%, transparent)", borderRadius:9, marginBottom:8 }}>
                     <div style={{ fontSize:10, color:C.orange, letterSpacing:".15em", textTransform:"uppercase", marginBottom:3 }}>⚡ Free-for-all — picks open to everyone</div>
@@ -1832,11 +1890,8 @@
                   </div>
                 )}
                 <Sel value={who} onChange={e => setWho(e.target.value)}>
-                  <option value="">{freeForAll ? "Select your name..." : `Confirm — are you ${order.find(p => !picks[p.id])?.name}?`}</option>
-                  {freeForAll
-                    ? data.players.filter(p => !picks[p.id]).map(p => <option key={p.id} value={p.id}>{p.name}</option>)
-                    : (() => { const turn = order.find(p => !picks[p.id]); return turn ? [turn].map(p => <option key={p.id} value={p.id}>{p.name}</option>) : null; })()
-                  }
+                  <option value="">{freeForAll || openNow.length !== 1 ? "Select your name..." : `Confirm — are you ${openNow[0].name}?`}</option>
+                  {(freeForAll ? data.players.filter(p => !picks[p.id]) : openNow).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </Sel>
               </div>
               <div style={{ marginBottom:9 }}>
@@ -2207,26 +2262,13 @@
           : "Race finalized & points saved ✅");
         setRaceId(""); setSprintOrd(Array(8).fill("")); setRaceOrd(Array(22).fill(""));
         // Wait for the finalize to land before the email bookkeeping reads the doc.
-        if (!isAlreadyCompleted) saved.then(() => emailFirstPicker(newData));
-      }
-
-      // Finalizing a race sets the pick order for the next one — tell whoever is
-      // first that it's their turn. Nothing else triggers that email (the "your
-      // turn" email only fires when the person ahead of you picks).
-      async function emailFirstPicker(newData) {
-        const nextRace = newData.races.find(r => r.status !== "completed");
-        if (!nextRace || nextRace.noLeague || nextRace._firstPickEmailSent) return;
-        const order = pickOrder(newData.players, newData.races);
-        const first = order.find(p => !(nextRace.picks || {})[p.id]);
-        if (!first) return;
-        const sent = await sendPickEmail({ toPlayer: first, nextRace, takenDrivers: Object.values(nextRace.picks || {}), allPlayers: newData.players, allRaces: newData.races });
-        if (sent) {
-          await patchRace(nextRace.id, r => ({ ...r, _firstPickEmailSent: true }));
-          showToast(`📧 ${first.name} notified — first pick for ${nextRace.name}`);
-        } else if (!first.email) {
-          showToast(`⚠️ ${first.name} picks first but has no email on file`);
+        // The next race's 36-hour clock starts now; the notice queue emails pick #1.
+        if (!isAlreadyCompleted) {
+          const nr = newData.races.find(r => r.status !== "completed");
+          if (nr && !nr._turnClockStart) saved.then(() => patchRace(nr.id, r => r._turnClockStart ? r : { ...r, _turnClockStart: new Date().toISOString() }));
         }
       }
+
 
       // Clear a race's results/points but KEEP everyone's picks
       function clearResults() {
@@ -2701,7 +2743,7 @@
                               const newPick = e.target.value;
                               const newPicks = { ...race.picks };
                               if (newPick === "") delete newPicks[p.id]; else newPicks[p.id] = newPick;
-                              const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks, ...(newPick === "" ? { manualUnlock:false } : {}) } : r);
+                              const races = data.races.map(r => r.id === race.id ? { ...r, picks: newPicks, _pickedAt: (() => { const pa = { ...(r._pickedAt || {}) }; if (newPick === "") delete pa[p.id]; else pa[p.id] = new Date().toISOString(); return pa; })(), ...(newPick === "" ? { manualUnlock:false } : {}) } : r);
                               update({ ...data, races });
                               showToast(newPick ? `${p.name} → ${newPick} ✅` : `${p.name}'s 1st pick cleared ✅`);
                             }}
@@ -3652,6 +3694,27 @@
         const picks2 = next.picks2 || {};
         const jobs   = [];
 
+        // Start the 36-hour clock the first time this race is the next race
+        // (normally done on finalize; this catches anything that slipped by).
+        if (!next._turnClockStart) {
+          patchRace(next.id, r => r._turnClockStart ? r : { ...r, _turnClockStart: now.toISOString() });
+          return;   // the save re-runs this effect with the clock set
+        }
+
+        // 36-hour turns (only until the free-for-all, which has its own email).
+        if (now < freeForAllTime(next)) {
+          const order = pickOrder(data.players, data.races);
+          const sched = turnSchedule(next, order) || [];
+          const turnSent = next._turnEmailed    || {};
+          const outSent  = next._timeoutEmailed || {};
+          sched.forEach((e, i) => {
+            if (!e.p.email || picks[e.p.id]) return;
+            const legacyFirst = i === 0 && next._firstPickEmailSent;
+            if (e.openAt <= now && !turnSent[e.p.id] && !legacyFirst) jobs.push({ kind:"turn", p:e.p, e, i, prev: sched[i-1] });
+            if (e.deadline <= now && !outSent[e.p.id] && sched[i+1]) jobs.push({ kind:"timeout", p:e.p, e, i, nextUp: sched[i+1] });
+          });
+        }
+
         // Free-for-all open → everyone still missing a 1st pick.
         if (now >= freeForAllTime(next)) {
           const sent = next._ffaEmailed || {};
@@ -3679,7 +3742,7 @@
         noticeBusyRef.current = true;
         (async () => {
           try {
-            const field = { ffa:"_ffaEmailed", second:"_secondEmailed" };
+            const field = { ffa:"_ffaEmailed", second:"_secondEmailed", turn:"_turnEmailed", timeout:"_timeoutEmailed" };
             const mark  = j => patchRace(next.id, r => ({ ...r, [field[j.kind]]: { ...(r[field[j.kind]] || {}), [j.p.id]: true } }));
             const failed = [];
             for (let i = 0; i < jobs.length; i++) {
@@ -3698,11 +3761,19 @@
       }, [data]);
 
       // Uses the generic notice template: {{subject}}, {{message}}, {{taken}}, {{app_url}}.
-      async function sendNotice({ kind, p }, next) {
+      async function sendNotice({ kind, p, e, i, prev, nextUp }, next) {
         const lock = raceLockTime(next).toLocaleString("en-US", { timeZone:LEAGUE_TZ, weekday:"long", hour:"numeric", minute:"2-digit" });
         const first  = Object.values(next.picks  || {});
         const second = Object.values(next.picks2 || {});
-        const params = kind === "ffa" ? {
+        const params = kind === "turn" ? {
+          subject: `Your turn to pick — ${next.name}`,
+          message: `${e.byTimeout && prev ? `${prev.p.name} ran out of their 36 hours, so you're up now too. ` : ""}It's your turn to pick your driver for the ${next.name} (${fmtShort(next.date)}) — you're #${i + 1} in the order. You have 36 hours, until ${fmtLeague(e.deadline)} (Detroit time), before the next player opens up as well.`,
+          taken:   [...first, ...second].join(", ") || "None yet",
+        } : kind === "timeout" ? {
+          subject: `Your 36 hours are up — ${next.name}`,
+          message: `Your 36 hours to pick for the ${next.name} (${fmtShort(next.date)}) are up, so ${nextUp.p.name} can now pick too. You haven't lost your spot — you can still pick any time before picks lock ${lock} (Detroit time), as long as your driver's still available.`,
+          taken:   [...first, ...second].join(", ") || "None yet",
+        } : kind === "ffa" ? {
           subject: `Free-for-all is open — ${next.name}`,
           message: `The free-for-all is open for the ${next.name} (${fmtShort(next.date)}). You haven't made your 1st pick yet — anyone can pick now, no need to wait for your turn. Picks lock ${lock} (Detroit time).`,
           taken:   [...first, ...second].join(", ") || "None yet",
